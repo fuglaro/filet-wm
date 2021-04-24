@@ -90,14 +90,14 @@ or for a user at
 .RS
 /* filetwmconf.c: Example source config file for filetwm's config plugin,
 changing the status bar font size. Build and install config:
+
 cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 */
 
-void _() { extern char *font; font = "monospace:bold:size=5"; }
+void config() { extern char *font; font = "monospace:bold:size=5"; }
 .RE
 
-Any non-static global variable in the filetwm.c source file can be customised
-in this manner. Please see the Configuraton Section.
+See https://github.com/fuglaro/filet-wm#Configuration for further details.
 
 .SS Status bar
 The status bar can be updated by changing the window name of the X root window.
