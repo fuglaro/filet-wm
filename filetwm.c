@@ -574,7 +574,8 @@ detach(Client *c)
 }
 
 void
-die(const char *msg) {
+die(const char *msg)
+{
 	fputs(msg, stderr);
 	exit(1);
 }
