@@ -1160,8 +1160,7 @@ void
 restack(Client *c, int mode)
 {
 	int i = 0;
-	static Client *pinned = NULL;
-	static Client *raised = NULL;
+	static Client *pinned = NULL, *raised = NULL;
 	Window up[3];
 	XWindowChanges wc;
 
@@ -1486,9 +1485,8 @@ void
 sigchld(int unused)
 {
 	/* self-register this method as the SIGCHLD handler (if haven't already) */
-	if (signal(SIGCHLD, sigchld) == SIG_ERR) {
+	if (signal(SIGCHLD, sigchld) == SIG_ERR)
 		die("can't install SIGCHLD handler.\n");
-	}
 
 	/* immediately release resources associated with any zombie child */
 	while (0 < waitpid(-1, NULL, WNOHANG));
