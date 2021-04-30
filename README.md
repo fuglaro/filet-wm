@@ -20,6 +20,7 @@ Windows have thin borders and indicate the focus state with a highlight color.
 
 The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and all sizing movements, but additional mouse controls are supported.
 
+See the https://github.com/fuglaro/filet-lignux project for the full filet-lignux desktop environment.
 
 ## Configuration
 
