@@ -47,7 +47,7 @@ void config(void) {
 ```
 Save it as `filetwmconf.c`, then install it to the user config location using the command found in the comment.
 
-Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and top-bar actions. Please see the defaultconfig method in the `filetwm.c` file for more details.
+Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and top-bar actions. Please see the defaultconfig method in the `filetwm.c` file, or the Advanced Config example below, for more details.
 
 If you change the behaviours around documented things, like keyboard shortcuts, you can update the Help action by creating a custom man page at `~/.config/filetwmconf.1`.
 
