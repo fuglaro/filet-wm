@@ -169,7 +169,6 @@ static void expose(XEvent *e);
 static void exthandler(XEvent *ev);
 static void focus(Client *c);
 static Atom getatomprop(Client *c, Atom prop);
-static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabkeys(void);
 static void grabresizeabort();
@@ -185,7 +184,6 @@ static void resize(Client *c, int x, int y, int w, int h);
 static void resizeclient(Client *c, int x, int y, int w, int h);
 static void restack(Client *c, int mode);
 static void run(void);
-static void scan(void);
 static int sendevent(Client *c, Atom proto);
 static void setfullscreen(Client *c, int fullscreen);
 static void setup(void);
@@ -727,25 +725,6 @@ getatomprop(Client *c, Atom prop)
 	return atom;
 }
 
-long
-getstate(Window w)
-{
-	int format;
-	long result = -1;
-	unsigned char *p = NULL;
-	unsigned long n, extra;
-	Atom real;
-
-	if (XGetWindowProperty(dpy, w, xatom[WMState], 0L, 2L, False,
-		xatom[WMState], &real, &format, &n, &extra,
-		(unsigned char **)&p) != Success)
-		return -1;
-	if (n != 0)
-		result = *p;
-	XFree(p);
-	return result;
-}
-
 int
 gettextprop(Window w, Atom atom, char *text, unsigned int size)
 {
@@ -1230,33 +1209,6 @@ run(void)
 	while (!end && !XNextEvent(dpy, &ev))
 		if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
-}
-
-void
-scan(void)
-{
-	unsigned int i, num;
-	Window d1, d2, *wins = NULL;
-	XWindowAttributes wa;
-
-	if (XQueryTree(dpy, root, &d1, &d2, &wins, &num)) {
-		for (i = 0; i < num; i++) {
-			if (!XGetWindowAttributes(dpy, wins[i], &wa)
-			|| wa.override_redirect || XGetTransientForHint(dpy, wins[i], &d1))
-				continue;
-			if (wa.map_state == IsViewable || getstate(wins[i]) == IconicState)
-				manage(wins[i], &wa);
-		}
-		for (i = 0; i < num; i++) { /* now the transients */
-			if (!XGetWindowAttributes(dpy, wins[i], &wa))
-				continue;
-			if (XGetTransientForHint(dpy, wins[i], &d1)
-			&& (wa.map_state == IsViewable || getstate(wins[i]) == IconicState))
-				manage(wins[i], &wa);
-		}
-		if (wins)
-			XFree(wins);
-	}
 }
 
 int
@@ -1771,7 +1723,6 @@ main(int argc, char *argv[])
 	if (!(dpy = XOpenDisplay(NULL)))
 		die("filetwm: cannot open display.\n");
 	setup();
-	scan();
 	run();
 	cleanup();
 	XCloseDisplay(dpy);
