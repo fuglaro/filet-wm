@@ -2,6 +2,58 @@
 
 ![](filetwm-demo.gif)
 
+filetwm is a minimalist window manager for X. It manages windows in tiled and floating layers, across virtual workspaces, with support for fullscreen and
+pinned windows.
+
+All windows start out floating and can be switched between the tiled layer on demand. In the tiled layer, windows are managed in two columns. The left column is the primary area and contains one window by default, while the right column is the stacking area and contains all other windows. The number of primary area windows can be adjusted to an arbitrary number, along with the primary column size, by resizing any window in the tile layer. In the floating layer, windows can be resized and moved freely.
+
+Window focus follows the mouse and clicks will raise a window. If any floating window is raised, all floating windows will sit above tiled windows. Fullscreen windows that are not raised will sit behind the tiled layer.
+
+The primary monitor contains a small status bar which contains four sections:
+* a launcher button (to open applications),
+* the selected window title,
+* a customisable status pane, and,
+* a display of the virtual workspaces.
+The virtual workspace pane shows the selected workspace (highlighted), dots to indicate which workspaces contain windows, and inversed colors when a contained window has an alert.
+
+Windows have thin borders and indicate the focus state with a highlight color.
+
+The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and all sizing movements, but additional mouse controls are supported.
+
+See the https://github.com/fuglaro/filet-lignux project for the full filet-lignux desktop environment.
+
+## Configuration
+
+What is a Window Manager without configuration options? As minimal as this project is, tweaking is essential for everyone to set things up just how they like things.
+
+Customise filetwm by making a '.so' file plugin and installing it to one of filetwm's config locations:
+* User config: `~/.config/filetwmconf.so`
+* System config: `/etc/config/filetwmconf.so`
+
+Here is an example config that changes the font size and customises the launcher command:
+```c
+/* filetwmconf.c: Source config file for filetwm's config plugin.
+Build and install config with:
+cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
+*/
+#include <unistd.h>
+#define S(T, N, V) extern T N; N = V;
+#define P(T, N, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N
+
+void config(void) {
+    S(char*, font, "monospace:size=7");
+    P(char*, launcher, { "launcher", "monospace:size=7", "#dddddd", "#111111", "#335577", NULL });
+}
+```
+Save it as `filetwmconf.c`, then install it to the user config location using the command found in the comment.
+
+Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and top-bar actions. Please see the defaultconfig method in the `filetwm.c` file, or the Advanced Config example below, for more details.
+
+If you change the behaviours around documented things, like keyboard shortcuts, you can update the Help action by creating a custom man page at `~/.config/filetwmconf.1`.
+
+### Status bar text
+To configure the status text on the top-bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
+
 ## Design and Engineering Philosophies
 
 This project explores how far a software product can be pushed in terms of simplicity and minimalism, both inside and out, without losing powerful features. Window Managers are often a source of bloat, as all software tends to be. *filetwm* pushes a Window Manager to its leanest essence. It is a joy to use because it does what it needs to, and then gets out of the way. The opinions that drove the project are:
@@ -59,36 +111,7 @@ There are a number of ways to launch a Window Manager (https://wiki.archlinux.or
 startx filetwm
 ```
 
-## Configuration
-
-What is a Window Manager without configuration options? As minimal as this project is, tweaking is essential for everyone to set things up just how they like things.
-
-Customise filetwm by making a '.so' file plugin and installing it to one of filetwm's config locations:
-* User config: `~/.config/filetwmconf.so`
-* System config: `/etc/config/filetwmconf.so`
-
-Here is an example config that changes the font size and customises the launcher command:
-```c
-/* filetwmconf.c: Source config file for filetwm's config plugin.
-Build and install config with:
-cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
-*/
-#include <unistd.h>
-#define S(T, N, V) extern T N; N = V;
-#define P(T, N, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N
-
-void config(void) {
-    S(char*, font, "monospace:size=7");
-    P(char*, launcher, { "launcher", "monospace:size=7", "#dddddd", "#111111", "#335577", NULL });
-}
-```
-Save it as `filetwmconf.c`, then install it to the user config location using the command found in the comment.
-
-Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and top-bar actions. Please see the defaultconfig method in the `filetwm.c` file for more details.
-
-If you change the behaviours around documented things, like keyboard shortcuts, you can update the Help action by creating a custom man page at `~/.config/filetwmconf.1`.
-
-### Advanced config example
+## Advanced config example
 The following config exemplifies changes to every option:
 ```c
 /* filetwmconf.c: Source config file for filetwm's config plugin.
@@ -220,9 +243,6 @@ void config(void) {
   });
 }
 ```
-
-### Status bar text
-To configure the status text on the top-bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
 
 # Thanks to, grateful forks, and contributions
 
