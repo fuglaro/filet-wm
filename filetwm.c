@@ -146,9 +146,6 @@ typedef struct {
  * want custom windowing regions. */
 typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 
-/* function declarations */
-static void restack(Client *c, int mode);
-
 /* function declarations callable from config plugins */
 void focusstack(const Arg *arg);
 void grabresize(const Arg *arg);
@@ -462,6 +459,71 @@ resize(Client *c, int x, int y, int w, int h)
 		configure(c);
 		XSync(dpy, False);
 	}
+}
+
+void
+restack(Client *c, int mode)
+{
+	int i = 0;
+	static Client *pinned = NULL, *raised = NULL;
+	Window up[3];
+	XWindowChanges wc;
+
+	switch (mode) {
+	case CliPin:
+		/* toggle pinned state */
+		pinned = pinned != c ? c : NULL;
+		break;
+	case CliRemove:
+		detach(c);
+		pinned = pinned != c ? pinned : NULL;
+		raised = raised != c ? raised : NULL;
+		break;
+	case CliZoom:
+		if (c) {
+			detach(c);
+			attach(c);
+		}
+		/* fall through to CliRaise */
+	case CliRaise:
+		raised = c;
+	}
+	/* always lift up anything pinned */
+	if (pinned && pinned->isfloating) {
+		detach(pinned);
+		attach(pinned);
+	}
+
+	XDeleteProperty(dpy, root, xatom[NetCliStack]);
+	if (barfocus) up[i++] = barwin;
+	if (pinned) {
+		up[i++] = pinned->win;
+		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
+	}
+	if (raised) {
+		up[i++] = raised->win;
+		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
+	}
+	if (!barfocus) up[i++] = barwin;
+	XRaiseWindow(dpy, up[0]);
+	XRestackWindows(dpy, up, i);
+	wc.stack_mode = Below;
+	wc.sibling = up[i - 1];
+
+	/* order floating/fullscreen layer */
+	for (c = clients; c; c = c->next)
+		if (c != pinned && c != raised && c->isfloating) {
+			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
+			wc.sibling = c->win;
+			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
+		}
+	/* order tiled layer */
+	for (c = clients; c; c = c->next)
+		if (c != pinned && c != raised && !c->isfloating) {
+			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
+			wc.sibling = c->win;
+			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
+		}
 }
 
 int
@@ -863,73 +925,6 @@ rawmotion()
 }
 
 void
-restack(Client *c, int mode)
-{
-	int i = 0;
-	static Client *pinned = NULL, *raised = NULL;
-	Window up[3];
-	XWindowChanges wc;
-
-	switch (mode) {
-	case CliPin:
-		/* toggle pinned state */
-		pinned = pinned != c ? c : NULL;
-		break;
-	case CliRemove:
-		detach(c);
-		pinned = pinned != c ? pinned : NULL;
-		raised = raised != c ? raised : NULL;
-		break;
-	case CliZoom:
-		if (c) {
-			detach(c);
-			attach(c);
-			if (!c->isfloating)
-				arrange();
-		}
-		/* fall through to CliRaise */
-	case CliRaise:
-		raised = c;
-	}
-	/* always lift up anything pinned */
-	if (pinned && pinned->isfloating) {
-		detach(pinned);
-		attach(pinned);
-	}
-
-	XDeleteProperty(dpy, root, xatom[NetCliStack]);
-	if (barfocus) up[i++] = barwin;
-	if (pinned) {
-		up[i++] = pinned->win;
-		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
-	}
-	if (raised) {
-		up[i++] = raised->win;
-		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
-	}
-	if (!barfocus) up[i++] = barwin;
-	XRaiseWindow(dpy, up[0]);
-	XRestackWindows(dpy, up, i);
-	wc.stack_mode = Below;
-	wc.sibling = up[i - 1];
-
-	/* order floating/fullscreen layer */
-	for (c = clients; c; c = c->next)
-		if (c != pinned && c != raised && c->isfloating) {
-			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
-			wc.sibling = c->win;
-			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
-		}
-	/* order tiled layer */
-	for (c = clients; c; c = c->next)
-		if (c != pinned && c != raised && !c->isfloating) {
-			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
-			wc.sibling = c->win;
-			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
-		}
-}
-
-void
 setfullscreen(Client *c, int fullscreen)
 {
 	int w, h, m1, m2;
@@ -1185,6 +1180,7 @@ keyrelease(XEvent *e)
 	   Alt+Tab+Tab... behavior like with common window managers */
 	if (dragmode == DragNone && KCODE(stackrelease) == e->xkey.keycode) {
 		restack(sel, CliZoom);
+		arrange(); /* zooming tiled windows can rearrange tiling */
 		XUngrabKeyboard(dpy, CurrentTime);
 	}
 }
@@ -1499,6 +1495,7 @@ void
 zoom(const Arg *arg)
 {
 	restack(sel, CliZoom);
+	arrange(); /* zooming tiled windows can rearrange tiling */
 }
 
 /***********************
