@@ -180,8 +180,8 @@ static void propertynotify(XEvent *e);
 static void unmapnotify(XEvent *e);
 
 /* variables */
-static char stxt[256]={'F','i','l','e','t','L','i','g','n','u','x',[255]='\0'};
-                                                              /* status text */
+static char stxt[256] = { /* status text */
+	'F','i','l','e','t','L','i','g','n','u','x','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
 static Window barwin;        /* the topbar */
 static int barfocus;         /* when the topbar is forced raised */
