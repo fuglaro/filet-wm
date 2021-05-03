@@ -154,12 +154,11 @@ typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 static void resize(Client *c, int x, int y, int w, int h);
 static void restack(Client *c, int mode);
 static int sendevent(Client *c, Atom proto);
-static void seturgent(Client *c, int urg);
+static void seturgency(Client *c);
 static void tile(void);
 static void updatesizehints(Client *c);
 static void updatetitle(Client *c);
 static void updatewindowtype(Client *c);
-static void updatewmhints(Client *c);
 static Client *wintoclient(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
@@ -495,8 +494,6 @@ focus(Client *c)
 		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
 	}
 	if (c) {
-		if (c->isurgent)
-			seturgent(c, 0);
 		XSetWindowBorder(dpy, c->win, cols[selbdr].pixel);
 		if (!barfocus) {
 			XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
@@ -508,6 +505,7 @@ focus(Client *c)
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	}
 	sel = c;
+	seturgency(c); /* clear urgency if set */
 	drawtopbar(0);
 }
 
@@ -642,7 +640,6 @@ manage(Window w, XWindowAttributes *wa)
 	configure(c); /* propagates border_width, if size doesn't change */
 	updatewindowtype(c);
 	updatesizehints(c);
-	updatewmhints(c);
 	XSelectInput(dpy, w, PropertyChangeMask|StructureNotifyMask);
 	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
 	/* some windows require this */
@@ -906,15 +903,22 @@ setfullscreen(Client *c, int fullscreen)
 	arrange();
 }
 
+/**
+ * Sets the urgency of the given client.
+ * Call this function to set the status to urgent, but
+ * if the given client is focussed, this will have the opposite
+ * effect and will ensure the urgent status is unset.
+ */
 void
-seturgent(Client *c, int urg)
+seturgency(Client *c)
 {
 	XWMHints *wmh;
 
-	c->isurgent = urg;
-	if (!(wmh = XGetWMHints(dpy, c->win)))
+	if (!c || c->isurgent == (sel != c) || !(wmh = XGetWMHints(dpy, c->win)))
 		return;
-	wmh->flags = urg ? (wmh->flags|XUrgencyHint) : (wmh->flags&~XUrgencyHint);
+	c->isurgent = (sel != c);
+	/* update the client's hint property with resulting urgency status */
+	wmh->flags = c->isurgent?(wmh->flags|XUrgencyHint):(wmh->flags&~XUrgencyHint);
 	XSetWMHints(dpy, c->win, wmh);
 	XFree(wmh);
 }
@@ -1065,21 +1069,6 @@ updatewindowtype(Client *c)
 		c->isfloating = 1;
 }
 
-void
-updatewmhints(Client *c)
-{
-	XWMHints *wmh;
-
-	if ((wmh = XGetWMHints(dpy, c->win))) {
-		if (c == sel && wmh->flags & XUrgencyHint) {
-			wmh->flags &= ~XUrgencyHint;
-			XSetWMHints(dpy, c->win, wmh);
-		} else
-			c->isurgent = (wmh->flags & XUrgencyHint) ? 1 : 0;
-		XFree(wmh);
-	}
-}
-
 Client *
 wintoclient(Window w)
 {
@@ -1175,13 +1164,11 @@ clientmessage(XEvent *e)
 	if (cme->message_type == xatom[NetWMState]) {
 		if (cme->data.l[1] == xatom[NetWMFullscreen]
 		|| cme->data.l[2] == xatom[NetWMFullscreen])
-			setfullscreen(c, (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD    */
-				|| (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */
-				&& !c->isfullscreen)));
-	} else if (cme->message_type == xatom[NetActiveWindow]) {
-		if (c != sel && !c->isurgent)
-			seturgent(c, 1);
-	}
+			/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
+			setfullscreen(c, (cme->data.l[0] == 1
+				|| (cme->data.l[0] == 2 && !c->isfullscreen)));
+	} else if (cme->message_type == xatom[NetActiveWindow])
+			seturgency(c);
 }
 
 void
@@ -1306,6 +1293,7 @@ propertynotify(XEvent *e)
 	Client *c;
 	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
+	XWMHints *wmh;
 
 	if ((ev->window == root) && (ev->atom == XA_WM_NAME))
 		updatestatus();
@@ -1323,8 +1311,12 @@ propertynotify(XEvent *e)
 			updatesizehints(c);
 			break;
 		case XA_WM_HINTS:
-			updatewmhints(c);
-			drawtopbar(0);
+			if ((wmh = XGetWMHints(dpy, c->win))) {
+				c->isurgent = (wmh->flags & XUrgencyHint) ? 1 : 0;
+				seturgency(c); /* clear urgency if client is focussed */
+				XFree(wmh);
+				drawtopbar(0);
+			}
 			break;
 		}
 		if (ev->atom == XA_WM_NAME || ev->atom == xatom[NetWMName]) {
