@@ -147,10 +147,8 @@ typedef struct {
 typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 
 /* function declarations */
-static void resize(Client *c, int x, int y, int w, int h);
 static void restack(Client *c, int mode);
 static void tile(void);
-static void updatesizehints(Client *c);
 void setfullscreen(Client *c, int fullscreen);
 
 /* function declarations callable from config plugins */
@@ -369,6 +367,89 @@ defaultconfig(void)
 * Utility functions
 ************************/
 
+void
+configure(Client *c)
+{
+	XConfigureEvent ce;
+
+	ce.type = ConfigureNotify;
+	ce.display = dpy;
+	ce.event = c->win;
+	ce.window = c->win;
+	ce.x = c->x;
+	ce.y = c->y;
+	ce.width = c->w;
+	ce.height = c->h;
+	ce.border_width = c->bw;
+	ce.above = None;
+	ce.override_redirect = False;
+	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
+}
+
+void
+resize(Client *c, int x, int y, int w, int h)
+{
+	int m1, m2;
+	XWindowChanges wc;
+
+	if (c->isfloating && !c->isfullscreen) {
+		c->fx = x;
+		c->fy = y;
+		c->fw = w;
+		c->fh = h;
+		/* snap position to edges */
+		for (m1 = 0; m1 < monslen-1 && !INMON(x+snap, y+snap, mons[m1]); m1++);
+		for (m2 = 0; m2 < monslen-1 && !INMON(x+w-snap, y+h-snap, mons[m2]); m2++);
+		/* snap position */
+		x = (abs(mons[m1].mx - x) < snap) ? mons[m1].mx : x;
+		y = (abs(WINY(mons[m1]) - y) < snap) ? WINY(mons[m1]) : y;
+		/* snap size */
+		if (abs((mons[m2].mx + mons[m2].mw) - (x + w + 2*c->bw)) < snap)
+			w = mons[m2].mx + mons[m2].mw - x - 2*c->bw;
+		if (abs((WINY(mons[m2]) + WINH(mons[m2])) - (y + h + 2*c->bw)) < snap)
+			h = WINY(mons[m2]) + WINH(mons[m2]) - y - 2*c->bw;
+	}
+
+	/* set minimum possible size */
+	w = MAX(1, w);
+	h = MAX(1, h);
+	/* return to visible area */
+	x = (x > sw) ? sw - WIDTH(c) : x;
+	y = (y > sh) ? sh - HEIGHT(c) : y;
+	x = (x + w + 2 * c->bw < 0) ? 0 : x;
+	y = (y + h + 2 * c->bw < 0) ? 0 : y;
+
+	/* adjust for aspect limits */
+	/* see last two sentences in ICCCM 4.1.2.3 */
+	w -= c->basew;
+	h -= c->baseh;
+	if (c->mina > 0 && c->maxa > 0 && !c->isfullscreen) {
+		if (c->maxa < (float)w / h)
+			w = h * c->maxa + 0.5;
+		else if (c->mina < (float)h / w)
+			h = w * c->mina + 0.5;
+	}
+
+	/* restore base dimensions and apply max and min dimensions */
+	w = MAX(w + c->basew, c->minw);
+	h = MAX(h + c->baseh, c->minh);
+	w = (c->maxw && !c->isfullscreen) ? MIN(w, c->maxw) : w;
+	h = (c->maxh && !c->isfullscreen) ? MIN(h, c->maxh) : h;
+
+	/* apply the resize if anything ended up changing */
+	if (x != c->x || y != c->y || w != c->w || h != c->h) {
+		c->x = wc.x = x;
+		c->y = wc.y = y;
+		c->w = wc.width = w;
+		c->h = wc.height = h;
+		/* fullscreen changes update the border width */
+		wc.border_width = c->bw;
+		XConfigureWindow(dpy, c->win, CWX|CWY|CWWidth|CWHeight|CWBorderWidth, &wc);
+		configure(c);
+		XSync(dpy, False);
+	}
+}
+
 int
 sendevent(Client *c, Atom proto)
 {
@@ -444,6 +525,35 @@ updateclientname(Client *c) {
 	}
 }
 
+void
+updatesizehints(Client *c)
+{
+	long msize;
+	XSizeHints size;
+
+	c->basew = c->baseh = c->maxw = c->maxh = c->minw = c->minh = 0;
+	c->maxa = c->mina = 0.0;
+	if (!XGetWMNormalHints(dpy, c->win, &size, &msize))
+		return;
+
+	if (size.flags & PBaseSize) {
+		c->basew = c->minw = size.base_width;
+		c->baseh = c->minh = size.base_height;
+	}
+	if (size.flags & PMaxSize) {
+		c->maxw = size.max_width;
+		c->maxh = size.max_height;
+	}
+	if (size.flags & PMinSize) {
+		c->minw = size.min_width;
+		c->minh = size.min_height;
+	}
+	if (size.flags & PAspect) {
+		c->mina = (float)size.min_aspect.y / size.min_aspect.x;
+		c->maxa = (float)size.max_aspect.x / size.max_aspect.y;
+	}
+}
+
 /**
  * Returns a pointer to the client which manages the given X window,
  * or NULL if the given X window is not a managed client.
@@ -510,25 +620,6 @@ attach(Client *c)
 {
 	c->next = clients;
 	clients = c;
-}
-
-void
-configure(Client *c)
-{
-	XConfigureEvent ce;
-
-	ce.type = ConfigureNotify;
-	ce.display = dpy;
-	ce.event = c->win;
-	ce.window = c->win;
-	ce.x = c->x;
-	ce.y = c->y;
-	ce.width = c->w;
-	ce.height = c->h;
-	ce.border_width = c->bw;
-	ce.above = None;
-	ce.override_redirect = False;
-	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
 void
@@ -687,74 +778,6 @@ grabresizeabort()
 }
 
 void
-manage(Window w, XWindowAttributes *wa)
-{
-	int x, y, m;
-	long state[] = { NormalState, None };
-	Client *c, *t = NULL;
-	Window trans = None;
-	XWindowChanges wc;
-
-	if (!(c = calloc(1, sizeof(Client))))
-		DIE("calloc failed.\n");
-	attach(c);
-	c->win = w;
-	c->zenping = 0;
-	c->isfloating = 1;
-	c->tags = tagset;
-	/* geometry */
-	c->fx = wa->x;
-	c->fy = wa->y;
-	c->fw = wa->width;
-	c->fh = wa->height;
-	c->oldbw = wa->border_width;
-	/* retrieve the window title */
-	updateclientname(c);
-	strcpy(c->zenname, c->name);
-	/* show window on same workspaces as its parent, if it has one */
-	if (XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans)))
-		c->tags = t->tags;
-
-	/* find current monitor */
-	if (MOUSEINF(dwin, x, y, dui))
-		for (m = monslen-1; m > 0 && !INMON(x, y, mons[m]); m--);
-	else m = 0;
-	/* adjust to current monitor */
-	if (c->fx + WIDTH(c) > mons[m].mx + mons[m].mw)
-		c->fx = mons[m].mx + mons[m].mw - WIDTH(c);
-	if (c->fy + HEIGHT(c) > mons[m].my + mons[m].mh)
-		c->fy = mons[m].my + mons[m].mh - HEIGHT(c);
-	c->fx = MAX(c->fx, mons[m].mx);
-	/* only fix client y-offset, if the client center might cover the bar */
-	c->fy = MAX(c->fy, ((BARY == mons->my) && (c->fx + (c->fw / 2) >= mons->mx)
-		&& (c->fx + (c->fw / 2) < mons->mx + mons->mw)) ? BARH : mons->my);
-	c->bw = borderpx;
-
-	wc.border_width = c->bw;
-	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
-	configure(c); /* propagates border_width, if size doesn't change */
-	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
-		setfullscreen(c, 1);
-	updatesizehints(c);
-	XSelectInput(dpy, w, PropertyChangeMask|StructureNotifyMask);
-	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
-	/* some windows require this */
-	XMoveResizeWindow(dpy, c->win, c->fx + 2 * sw, c->fy, c->fw, c->fh);
-	PROPSET(c->win, WMState, xatom[WMState], 32, state, 2);
-	resize(c, c->fx, c->fy, c->fw, c->fh);
-	restack(c, CliRaise);
-	XMapWindow(dpy, c->win);
-	focus(c);
-}
-
-Client *
-nexttiled(Client *c)
-{
-	for (; c && (c->isfloating || !ISVISIBLE(c)); c = c->next);
-	return c;
-}
-
-void
 rawmotion()
 {
 	int rx, ry, x, y;
@@ -805,70 +828,6 @@ rawmotion()
 	/* watch for border edge locations for resizing */
 	if (c && !mask && (MOVEZONE(c, rx, ry) || RESIZEZONE(c, rx, ry)))
 		grabresize(&(Arg){.i = DragCheck});
-}
-
-void
-resize(Client *c, int x, int y, int w, int h)
-{
-	int m1, m2;
-	XWindowChanges wc;
-
-	if (c->isfloating && !c->isfullscreen) {
-		c->fx = x;
-		c->fy = y;
-		c->fw = w;
-		c->fh = h;
-		/* snap position to edges */
-		for (m1 = 0; m1 < monslen-1 && !INMON(x+snap, y+snap, mons[m1]); m1++);
-		for (m2 = 0; m2 < monslen-1 && !INMON(x+w-snap, y+h-snap, mons[m2]); m2++);
-		/* snap position */
-		x = (abs(mons[m1].mx - x) < snap) ? mons[m1].mx : x;
-		y = (abs(WINY(mons[m1]) - y) < snap) ? WINY(mons[m1]) : y;
-		/* snap size */
-		if (abs((mons[m2].mx + mons[m2].mw) - (x + w + 2*c->bw)) < snap)
-			w = mons[m2].mx + mons[m2].mw - x - 2*c->bw;
-		if (abs((WINY(mons[m2]) + WINH(mons[m2])) - (y + h + 2*c->bw)) < snap)
-			h = WINY(mons[m2]) + WINH(mons[m2]) - y - 2*c->bw;
-	}
-
-	/* set minimum possible size */
-	w = MAX(1, w);
-	h = MAX(1, h);
-	/* return to visible area */
-	x = (x > sw) ? sw - WIDTH(c) : x;
-	y = (y > sh) ? sh - HEIGHT(c) : y;
-	x = (x + w + 2 * c->bw < 0) ? 0 : x;
-	y = (y + h + 2 * c->bw < 0) ? 0 : y;
-
-	/* adjust for aspect limits */
-	/* see last two sentences in ICCCM 4.1.2.3 */
-	w -= c->basew;
-	h -= c->baseh;
-	if (c->mina > 0 && c->maxa > 0 && !c->isfullscreen) {
-		if (c->maxa < (float)w / h)
-			w = h * c->maxa + 0.5;
-		else if (c->mina < (float)h / w)
-			h = w * c->mina + 0.5;
-	}
-
-	/* restore base dimensions and apply max and min dimensions */
-	w = MAX(w + c->basew, c->minw);
-	h = MAX(h + c->baseh, c->minh);
-	w = (c->maxw && !c->isfullscreen) ? MIN(w, c->maxw) : w;
-	h = (c->maxh && !c->isfullscreen) ? MIN(h, c->maxh) : h;
-
-	/* apply the resize if anything ended up changing */
-	if (x != c->x || y != c->y || w != c->w || h != c->h) {
-		c->x = wc.x = x;
-		c->y = wc.y = y;
-		c->w = wc.width = w;
-		c->h = wc.height = h;
-		/* fullscreen changes update the border width */
-		wc.border_width = c->bw;
-		XConfigureWindow(dpy, c->win, CWX|CWY|CWWidth|CWHeight|CWBorderWidth, &wc);
-		configure(c);
-		XSync(dpy, False);
-	}
 }
 
 void
@@ -993,31 +952,34 @@ tile(void)
 	int nm[32] = {0}, i[32] = {0}, my[32] = {0}, ty[32] = {0};
 	Client *c;
 
-	/* find the number of clients in each monitor */
-	for (c = nexttiled(clients); c; c = nexttiled(c->next)) {
-		for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-		nm[m]++;
-	}
+	/* find the number of tiled clients in each monitor */
+	for (c = clients; c; c = c->next)
+		if (!c->isfloating && ISVISIBLE(c)) {
+			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
+			nm[m]++;
+		}
 
 	/* tile windows into the relevant monitors. */
-	for (c = nexttiled(clients); c; c = nexttiled(c->next), i[m]++) {
-		/* find the monitor placement again */
-		for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-		/* tile the client within the relevant monitor */
-		mw = nm[m] > nmain[m] ? mons[m].mw * mfact[m] : mons[m].mw;
-		if (i[m] < nmain[m]) {
-			h = (WINH(mons[m]) - my[m]) / (MIN(nm[m], nmain[m]) - i[m]);
-			resize(c, mons[m].mx, WINY(mons[m]) + my[m], mw-(2*c->bw), h-(2*c->bw));
-			if (my[m] + HEIGHT(c) < WINH(mons[m]))
-				my[m] += HEIGHT(c);
-		} else {
-			h = (WINH(mons[m]) - ty[m]) / (nm[m] - i[m]);
-			resize(c, mons[m].mx + mw, WINY(mons[m]) + ty[m],
-				mons[m].mw - mw - (2*c->bw), h - (2*c->bw));
-			if (ty[m] + HEIGHT(c) < WINH(mons[m]))
-				ty[m] += HEIGHT(c);
+	for (c = clients; c; c = c->next)
+		if (!c->isfloating && ISVISIBLE(c)) {
+			/* find the monitor placement again */
+			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
+			/* tile the client within the relevant monitor */
+			mw = nm[m] > nmain[m] ? mons[m].mw * mfact[m] : mons[m].mw;
+			if (i[m] < nmain[m]) {
+				h = (WINH(mons[m]) - my[m]) / (MIN(nm[m], nmain[m]) - i[m]);
+				resize(c, mons[m].mx, WINY(mons[m]) + my[m], mw-(2*c->bw), h-(2*c->bw));
+				if (my[m] + HEIGHT(c) < WINH(mons[m]))
+					my[m] += HEIGHT(c);
+			} else {
+				h = (WINH(mons[m]) - ty[m]) / (nm[m] - i[m]);
+				resize(c, mons[m].mx + mw, WINY(mons[m]) + ty[m],
+					mons[m].mw - mw - (2*c->bw), h - (2*c->bw));
+				if (ty[m] + HEIGHT(c) < WINH(mons[m]))
+					ty[m] += HEIGHT(c);
+			}
+			i[m]++;
 		}
-	}
 }
 
 void
@@ -1062,35 +1024,6 @@ updatemonitors()
 	m = mons[pri];
 	mons[pri] = mons[0];
 	mons[0] = m;
-}
-
-void
-updatesizehints(Client *c)
-{
-	long msize;
-	XSizeHints size;
-
-	c->basew = c->baseh = c->maxw = c->maxh = c->minw = c->minh = 0;
-	c->maxa = c->mina = 0.0;
-	if (!XGetWMNormalHints(dpy, c->win, &size, &msize))
-		return;
-
-	if (size.flags & PBaseSize) {
-		c->basew = c->minw = size.base_width;
-		c->baseh = c->minh = size.base_height;
-	}
-	if (size.flags & PMaxSize) {
-		c->maxw = size.max_width;
-		c->maxh = size.max_height;
-	}
-	if (size.flags & PMinSize) {
-		c->minw = size.min_width;
-		c->minh = size.min_height;
-	}
-	if (size.flags & PAspect) {
-		c->mina = (float)size.min_aspect.y / size.min_aspect.x;
-		c->maxa = (float)size.max_aspect.x / size.max_aspect.y;
-	}
 }
 
 void
@@ -1275,15 +1208,71 @@ mappingnotify(XEvent *e)
 void
 maprequest(XEvent *e)
 {
+	int x, y, m;
+	long state[] = { NormalState, None };
+	Client *c, *t = NULL;
+	Window trans = None;
+	XWindowChanges wc;
 	static XWindowAttributes wa;
 	XMapRequestEvent *ev = &e->xmaprequest;
 
-	if (!XGetWindowAttributes(dpy, ev->window, &wa))
+	if (!XGetWindowAttributes(dpy, ev->window, &wa) || wa.override_redirect
+	|| wintoclient(ev->window))
 		return;
-	if (wa.override_redirect)
-		return;
-	if (!wintoclient(ev->window))
-		manage(ev->window, &wa);
+
+	/**
+	 * Manage the window by registering it as a new client
+	 */
+	if (!(c = calloc(1, sizeof(Client))))
+		DIE("calloc failed.\n");
+	attach(c);
+	c->win = ev->window;
+	c->zenping = 0;
+	c->isfloating = 1;
+	c->tags = tagset;
+	/* geometry */
+	c->fx = wa.x;
+	c->fy = wa.y;
+	c->fw = wa.width;
+	c->fh = wa.height;
+	c->oldbw = wa.border_width;
+	/* retrieve the window title */
+	updateclientname(c);
+	strcpy(c->zenname, c->name);
+	/* show window on same workspaces as its parent, if it has one */
+	if (XGetTransientForHint(dpy, ev->window, &trans) && (t = wintoclient(trans)))
+		c->tags = t->tags;
+
+	/* find current monitor */
+	if (MOUSEINF(dwin, x, y, dui))
+		for (m = monslen-1; m > 0 && !INMON(x, y, mons[m]); m--);
+	else m = 0;
+	/* adjust to current monitor */
+	if (c->fx + WIDTH(c) > mons[m].mx + mons[m].mw)
+		c->fx = mons[m].mx + mons[m].mw - WIDTH(c);
+	if (c->fy + HEIGHT(c) > mons[m].my + mons[m].mh)
+		c->fy = mons[m].my + mons[m].mh - HEIGHT(c);
+	c->fx = MAX(c->fx, mons[m].mx);
+	/* only fix client y-offset, if the client center might cover the bar */
+	c->fy = MAX(c->fy, ((BARY == mons->my) && (c->fx + (c->fw / 2) >= mons->mx)
+		&& (c->fx + (c->fw / 2) < mons->mx + mons->mw)) ? BARH : mons->my);
+	c->bw = borderpx;
+
+	wc.border_width = c->bw;
+	XConfigureWindow(dpy, ev->window, CWBorderWidth, &wc);
+	configure(c); /* propagates border_width, if size doesn't change */
+	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
+		setfullscreen(c, 1);
+	updatesizehints(c);
+	XSelectInput(dpy, ev->window, PropertyChangeMask|StructureNotifyMask);
+	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
+	/* some windows require this */
+	XMoveResizeWindow(dpy, c->win, c->fx + 2 * sw, c->fy, c->fw, c->fh);
+	PROPSET(c->win, WMState, xatom[WMState], 32, state, 2);
+	resize(c, c->fx, c->fy, c->fw, c->fh);
+	restack(c, CliRaise);
+	XMapWindow(dpy, c->win);
+	focus(c);
 }
 
 void
