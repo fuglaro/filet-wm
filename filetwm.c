@@ -566,7 +566,8 @@ grabkeys(void)
 }
 
 void
-grabresizeabort() {
+grabresizeabort()
+{
 	int i, m;
 	char keystatemap[32];
 
@@ -644,7 +645,7 @@ manage(Window w, XWindowAttributes *wa)
 	updatewmhints(c);
 	XSelectInput(dpy, w, PropertyChangeMask|StructureNotifyMask);
 	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
- /* some windows require this */
+	/* some windows require this */
 	XMoveResizeWindow(dpy, c->win, c->fx + 2 * sw, c->fy, c->fw, c->fh);
 	PROPSET(c->win, WMState, xatom[WMState], 32, state, 2);
 	resize(c, c->fx, c->fy, c->fw, c->fh);
