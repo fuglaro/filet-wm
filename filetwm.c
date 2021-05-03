@@ -148,7 +148,6 @@ typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 
 /* function declarations */
 static void restack(Client *c, int mode);
-static void tile(void);
 void setfullscreen(Client *c, int fullscreen);
 
 /* function declarations callable from config plugins */
@@ -368,6 +367,13 @@ defaultconfig(void)
 ************************/
 
 void
+attach(Client *c)
+{
+	c->next = clients;
+	clients = c;
+}
+
+void
 configure(Client *c)
 {
 	XConfigureEvent ce;
@@ -384,6 +390,15 @@ configure(Client *c)
 	ce.above = None;
 	ce.override_redirect = False;
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
+}
+
+void
+detach(Client *c)
+{
+	Client **tc;
+
+	for (tc = &clients; *tc && *tc != c; tc = &(*tc)->next);
+	*tc = c->next;
 }
 
 void
@@ -605,30 +620,48 @@ void
 arrange(void)
 {
 	Client *c;
+	unsigned int m, h, mw;
+	/* maximum of 32 monitors supported */
+	int nm[32] = {0}, i[32] = {0}, my[32] = {0}, ty[32] = {0};
 
 	/* ensure a visible window has focus */
 	focus(NULL);
+
 	/* hide and show clients for the current workspace */
 	for (c = clients; c; c = c->next)
 		XMoveWindow(dpy, c->win, ISVISIBLE(c) ? c->x : WIDTH(c) * -2, c->y);
-	tile();
+
+	/* find the number of tiled clients in each monitor */
+	for (c = clients; c; c = c->next)
+		if (!c->isfloating && ISVISIBLE(c)) {
+			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
+			nm[m]++;
+		}
+
+	/* arrange tiled windows into the relevant monitors. */
+	for (c = clients; c; c = c->next)
+		if (!c->isfloating && ISVISIBLE(c)) {
+			/* find the monitor placement again */
+			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
+			/* tile the client within the relevant monitor */
+			mw = nm[m] > nmain[m] ? mons[m].mw * mfact[m] : mons[m].mw;
+			if (i[m] < nmain[m]) {
+				h = (WINH(mons[m]) - my[m]) / (MIN(nm[m], nmain[m]) - i[m]);
+				resize(c, mons[m].mx, WINY(mons[m]) + my[m], mw-(2*c->bw), h-(2*c->bw));
+				if (my[m] + HEIGHT(c) < WINH(mons[m]))
+					my[m] += HEIGHT(c);
+			} else {
+				h = (WINH(mons[m]) - ty[m]) / (nm[m] - i[m]);
+				resize(c, mons[m].mx + mw, WINY(mons[m]) + ty[m],
+					mons[m].mw - mw - (2*c->bw), h - (2*c->bw));
+				if (ty[m] + HEIGHT(c) < WINH(mons[m]))
+					ty[m] += HEIGHT(c);
+			}
+			i[m]++;
+		}
+
+	/* Lift the selected window to the top */
 	restack(sel, CliRaise);
-}
-
-void
-attach(Client *c)
-{
-	c->next = clients;
-	clients = c;
-}
-
-void
-detach(Client *c)
-{
-	Client **tc;
-
-	for (tc = &clients; *tc && *tc != c; tc = &(*tc)->next);
-	*tc = c->next;
 }
 
 int
@@ -768,7 +801,7 @@ grabresizeabort()
 		for (m = 0; m < monslen-1 && !INMON(sel->x, sel->y, mons[m]); m++);
 		mfact[m] = MIN(0.95, MAX(0.05, (float)WIDTH(sel) / mons[m].mw));
 		nmain[m] = MAX(1, mons[m].mh / HEIGHT(sel));
-		tile();
+		arrange();
 	}
 
 	/* release the drag */
@@ -942,44 +975,6 @@ sigchld(int unused)
 
 	/* immediately release resources associated with any zombie child */
 	while (0 < waitpid(-1, NULL, WNOHANG));
-}
-
-void
-tile(void)
-{
-	unsigned int m, h, mw;
-	/* maximum of 32 monitors supported */
-	int nm[32] = {0}, i[32] = {0}, my[32] = {0}, ty[32] = {0};
-	Client *c;
-
-	/* find the number of tiled clients in each monitor */
-	for (c = clients; c; c = c->next)
-		if (!c->isfloating && ISVISIBLE(c)) {
-			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-			nm[m]++;
-		}
-
-	/* tile windows into the relevant monitors. */
-	for (c = clients; c; c = c->next)
-		if (!c->isfloating && ISVISIBLE(c)) {
-			/* find the monitor placement again */
-			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-			/* tile the client within the relevant monitor */
-			mw = nm[m] > nmain[m] ? mons[m].mw * mfact[m] : mons[m].mw;
-			if (i[m] < nmain[m]) {
-				h = (WINH(mons[m]) - my[m]) / (MIN(nm[m], nmain[m]) - i[m]);
-				resize(c, mons[m].mx, WINY(mons[m]) + my[m], mw-(2*c->bw), h-(2*c->bw));
-				if (my[m] + HEIGHT(c) < WINH(mons[m]))
-					my[m] += HEIGHT(c);
-			} else {
-				h = (WINH(mons[m]) - ty[m]) / (nm[m] - i[m]);
-				resize(c, mons[m].mx + mw, WINY(mons[m]) + ty[m],
-					mons[m].mw - mw - (2*c->bw), h - (2*c->bw));
-				if (ty[m] + HEIGHT(c) < WINH(mons[m]))
-					ty[m] += HEIGHT(c);
-			}
-			i[m]++;
-		}
 }
 
 void
