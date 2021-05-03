@@ -397,6 +397,20 @@ detach(Client *c)
 	*tc = c->next;
 }
 
+Atom
+getatomprop(Client *c, Atom prop)
+{
+	unsigned char *p = NULL;
+	Atom da, atom = None;
+
+	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, XA_ATOM,
+		&da, &di, &dl, &dl, &p) == Success && p) {
+		atom = *(Atom *)p;
+		XFree(p);
+	}
+	return atom;
+}
+
 void
 resize(Client *c, int x, int y, int w, int h)
 {
@@ -813,20 +827,6 @@ focus(Client *c)
 	sel = c;
 	seturgency(c); /* clear urgency if set */
 	drawtopbar(0);
-}
-
-Atom
-getatomprop(Client *c, Atom prop)
-{
-	unsigned char *p = NULL;
-	Atom da, atom = None;
-
-	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, XA_ATOM,
-		&da, &di, &dl, &dl, &p) == Success && p) {
-		atom = *(Atom *)p;
-		XFree(p);
-	}
-	return atom;
 }
 
 void
