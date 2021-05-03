@@ -9,10 +9,6 @@
  * to receive events about window (dis-)appearance. Only one X connection at a
  * time is allowed to select for this event mask.
  *
- * The event handlers of dwm are organized in an array which is accessed
- * whenever a new event has been fetched. This allows event dispatching
- * in O(1) time.
- *
  * Each child of the root window is called a client, except windows which have
  * set the override_redirect flag. Clients are organized in a linked client
  * list. Each client contains a bit array to indicate the tags (workspaces)
@@ -153,15 +149,9 @@ typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 /* function declarations */
 static void resize(Client *c, int x, int y, int w, int h);
 static void restack(Client *c, int mode);
-static int sendevent(Client *c, Atom proto);
-static void seturgency(Client *c);
 static void tile(void);
 static void updatesizehints(Client *c);
-static void updatetitle(Client *c);
-static void updatewindowtype(Client *c);
-static Client *wintoclient(Window w);
-static int xerror(Display *dpy, XErrorEvent *ee);
-static int xerrordummy(Display *dpy, XErrorEvent *ee);
+void setfullscreen(Client *c, int fullscreen);
 
 /* function declarations callable from config plugins */
 void focusstack(const Arg *arg);
@@ -197,13 +187,18 @@ static void propertynotify(XEvent *e);
 static void unmapnotify(XEvent *e);
 
 /* variables */
-static char stext[256];      /* status text */
+static char stxt[256]={'F','i','l','e','t','L','i','g','n','u','x',[255]='\0'};
+                                                              /* status text */
 static int sw, sh;           /* X display screen geometry width, height */
 static Window barwin;        /* the topbar */
 static int barfocus;         /* when the topbar is forced raised */
 static int dragmode = DragNone; /* mouse mode (resize/repos/arrange/etc) */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int tagset = 1; /* mask for which workspaces are displayed */
+/* The event handlers are organized in an array which is accessed
+ * whenever a new event has been fetched. The array indicies associate
+ * with event numbers. This allows event dispatching in O(1) time.
+ */
 static void (*handler[LASTEvent]) (XEvent *) = { /* XEvent callbacks */
 	[ButtonPress] = buttonpress,
 	[ButtonRelease] = buttonrelease,
@@ -370,6 +365,132 @@ defaultconfig(void)
 /* End Configuration Section
 ****************************/
 
+/***********************
+* Utility functions
+************************/
+
+int
+sendevent(Client *c, Atom proto)
+{
+	int n;
+	Atom *protocols;
+	int exists = 0;
+	XEvent ev;
+
+	if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
+		while (!exists && n--)
+			exists = protocols[n] == proto;
+		XFree(protocols);
+	}
+	if (exists) {
+		ev.type = ClientMessage;
+		ev.xclient.window = c->win;
+		ev.xclient.message_type = xatom[WMProtocols];
+		ev.xclient.format = 32;
+		ev.xclient.data.l[0] = proto;
+		ev.xclient.data.l[1] = CurrentTime;
+		XSendEvent(dpy, c->win, False, NoEventMask, &ev);
+	}
+	return exists;
+}
+
+/**
+ * Sets the urgency of the given client.
+ * Call this function to set the status to urgent, but
+ * if the given client is focussed, this will have the opposite
+ * effect and will ensure the urgent status is unset.
+ */
+void
+seturgency(Client *c)
+{
+	XWMHints *wmh;
+
+	if (!c || c->isurgent == (sel != c) || !(wmh = XGetWMHints(dpy, c->win)))
+		return;
+	c->isurgent = (sel != c);
+	/* update the client's hint property with resulting urgency status */
+	wmh->flags = c->isurgent?(wmh->flags|XUrgencyHint):(wmh->flags&~XUrgencyHint);
+	XSetWMHints(dpy, c->win, wmh);
+	XFree(wmh);
+}
+
+/**
+ * Retrieve the current client window name by first checking the
+ * legacy XA_WM_NAME property on the window and then overriding
+ * with the EWMH compliant property if one exists.
+ * If neither are present, the name is set to an empty string.
+ */
+void
+updateclientname(Client *c) {
+	char **v = NULL;
+	XTextProperty p;
+
+	/* set to empty string and protect from upcoming overflows */
+	c->name[0] = c->name[sizeof(c->name) - 1] = '\0';
+
+	/* retrieve legacy name property */
+	if (XGetTextProperty(dpy, c->win, &p, XA_WM_NAME) && p.nitems) {
+		if (XmbTextPropertyToTextList(dpy, &p, &v, &di) >= Success && *v) {
+			strncpy(c->name, *v, sizeof(c->name) - 1);
+			XFreeStringList(v);
+		}
+		XFree(p.value);
+	}
+
+	/* retrieve and override name from EWMH supporting clients */
+	if (XGetTextProperty(dpy, c->win, &p, xatom[NetWMName]) && p.nitems) {
+		strncpy(c->name, (char *)p.value, sizeof(c->name) - 1);
+		XFree(p.value);
+	}
+}
+
+/**
+ * Returns a pointer to the client which manages the given X window,
+ * or NULL if the given X window is not a managed client.
+ */
+Client *
+wintoclient(Window w)
+{
+	Client *c;
+
+	for (c = clients; c && c->win != w; c = c->next);
+	return c;
+}
+
+/* There's no way to check accesses to destroyed windows, thus those cases are
+ * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
+ * default error handler, which may call exit. */
+int
+xerror(Display *dpy, XErrorEvent *ee)
+{
+	if (ee->error_code == BadWindow
+	|| (ee->request_code == X_SetInputFocus && ee->error_code == BadMatch)
+	|| (ee->request_code == X_PolyText8 && ee->error_code == BadDrawable)
+	|| (ee->request_code == X_PolyFillRectangle && ee->error_code == BadDrawable)
+	|| (ee->request_code == X_PolySegment && ee->error_code == BadDrawable)
+	|| (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch)
+	|| (ee->request_code == X_GrabButton && ee->error_code == BadAccess)
+	|| (ee->request_code == X_GrabKey && ee->error_code == BadAccess)
+	|| (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
+		return 0;
+	else if (ee->request_code == X_ChangeWindowAttributes
+	&& ee->error_code == BadAccess)
+		DIE("filetwm: another window manager may already be running.\n");
+	fprintf(stderr, "filetwm: fatal error: request code=%d, error code=%d\n",
+		ee->request_code, ee->error_code);
+	return xerrorxlib(dpy, ee); /* may call exit */
+}
+
+int
+xerrordummy(Display *dpy, XErrorEvent *ee)
+{
+	return 0;
+}
+
+/***********************
+* General functions
+************************/
+
 void
 arrange(void)
 {
@@ -474,8 +595,8 @@ drawtopbar(int zen)
 	}
 
 	/* draw status (right align) */
-	w = TEXTW(stext);
-	drawtext(x - w, 0, w, BARH, stext, &cols[fg], &cols[bg]);
+	w = TEXTW(stxt);
+	drawtext(x - w, 0, w, BARH, stxt, &cols[fg], &cols[bg]);
 
 	/* display composited bar */
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, mons->mw, BARH, 0, 0);
@@ -521,32 +642,6 @@ getatomprop(Client *c, Atom prop)
 		XFree(p);
 	}
 	return atom;
-}
-
-int
-gettextprop(Window w, Atom atom, char *text, unsigned int size)
-{
-	char **list = NULL;
-	int n;
-	XTextProperty name;
-
-	if (!text || size == 0)
-		return 0;
-	text[0] = '\0';
-	if (!XGetTextProperty(dpy, w, &name, atom) || !name.nitems)
-		return 0;
-	if (name.encoding == XA_STRING)
-		strncpy(text, (char *)name.value, size - 1);
-	else {
-		if (XmbTextPropertyToTextList(dpy, &name, &list, &n) >= Success
-		&& n > 0 && *list) {
-			strncpy(text, *list, size - 1);
-			XFreeStringList(list);
-		}
-	}
-	text[size - 1] = '\0';
-	XFree(name.value);
-	return 1;
 }
 
 void
@@ -605,20 +700,20 @@ manage(Window w, XWindowAttributes *wa)
 	attach(c);
 	c->win = w;
 	c->zenping = 0;
+	c->isfloating = 1;
+	c->tags = tagset;
 	/* geometry */
 	c->fx = wa->x;
 	c->fy = wa->y;
 	c->fw = wa->width;
 	c->fh = wa->height;
 	c->oldbw = wa->border_width;
-
-	updatetitle(c);
+	/* retrieve the window title */
+	updateclientname(c);
 	strcpy(c->zenname, c->name);
+	/* show window on same workspaces as its parent, if it has one */
 	if (XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans)))
 		c->tags = t->tags;
-	else
-		c->tags = tagset;
-	c->isfloating = 1;
 
 	/* find current monitor */
 	if (MOUSEINF(dwin, x, y, dui))
@@ -638,7 +733,8 @@ manage(Window w, XWindowAttributes *wa)
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
 	configure(c); /* propagates border_width, if size doesn't change */
-	updatewindowtype(c);
+	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
+		setfullscreen(c, 1);
 	updatesizehints(c);
 	XSelectInput(dpy, w, PropertyChangeMask|StructureNotifyMask);
 	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
@@ -842,31 +938,6 @@ restack(Client *c, int mode)
 		}
 }
 
-int
-sendevent(Client *c, Atom proto)
-{
-	int n;
-	Atom *protocols;
-	int exists = 0;
-	XEvent ev;
-
-	if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
-		while (!exists && n--)
-			exists = protocols[n] == proto;
-		XFree(protocols);
-	}
-	if (exists) {
-		ev.type = ClientMessage;
-		ev.xclient.window = c->win;
-		ev.xclient.message_type = xatom[WMProtocols];
-		ev.xclient.format = 32;
-		ev.xclient.data.l[0] = proto;
-		ev.xclient.data.l[1] = CurrentTime;
-		XSendEvent(dpy, c->win, False, NoEventMask, &ev);
-	}
-	return exists;
-}
-
 void
 setfullscreen(Client *c, int fullscreen)
 {
@@ -901,26 +972,6 @@ setfullscreen(Client *c, int fullscreen)
 		resize(c, c->fx, c->fy, c->fw, c->fh);
 	}
 	arrange();
-}
-
-/**
- * Sets the urgency of the given client.
- * Call this function to set the status to urgent, but
- * if the given client is focussed, this will have the opposite
- * effect and will ensure the urgent status is unset.
- */
-void
-seturgency(Client *c)
-{
-	XWMHints *wmh;
-
-	if (!c || c->isurgent == (sel != c) || !(wmh = XGetWMHints(dpy, c->win)))
-		return;
-	c->isurgent = (sel != c);
-	/* update the client's hint property with resulting urgency status */
-	wmh->flags = c->isurgent?(wmh->flags|XUrgencyHint):(wmh->flags&~XUrgencyHint);
-	XSetWMHints(dpy, c->win, wmh);
-	XFree(wmh);
 }
 
 void
@@ -1045,69 +1096,17 @@ updatesizehints(Client *c)
 void
 updatestatus(void)
 {
-	if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
-		strcpy(stext, "  FiletLignux  ");
+	char **v = NULL;
+	XTextProperty p;
+
+	if (XGetTextProperty(dpy, root, &p, XA_WM_NAME) && p.nitems) {
+		if (XmbTextPropertyToTextList(dpy, &p, &v, &di) >= Success && *v) {
+			strncpy(stxt, *v, sizeof(stxt) - 1);
+			XFreeStringList(v);
+		}
+		XFree(p.value);
+	}
 	drawtopbar(1);
-}
-
-void
-updatetitle(Client *c)
-{
-	if (!gettextprop(c->win, xatom[NetWMName], c->name, sizeof c->name))
-		gettextprop(c->win, XA_WM_NAME, c->name, sizeof c->name);
-}
-
-void
-updatewindowtype(Client *c)
-{
-	Atom state = getatomprop(c, xatom[NetWMState]);
-	Atom wtype = getatomprop(c, xatom[NetWMWindowType]);
-
-	if (state == xatom[NetWMFullscreen])
-		setfullscreen(c, 1);
-	if (wtype == xatom[NetWMWinDialog])
-		c->isfloating = 1;
-}
-
-Client *
-wintoclient(Window w)
-{
-	Client *c;
-
-	for (c = clients; c; c = c->next)
-		if (c->win == w)
-			return c;
-	return NULL;
-}
-
-/* There's no way to check accesses to destroyed windows, thus those cases are
- * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
- * default error handler, which may call exit. */
-int
-xerror(Display *dpy, XErrorEvent *ee)
-{
-	if (ee->error_code == BadWindow
-	|| (ee->request_code == X_SetInputFocus && ee->error_code == BadMatch)
-	|| (ee->request_code == X_PolyText8 && ee->error_code == BadDrawable)
-	|| (ee->request_code == X_PolyFillRectangle && ee->error_code == BadDrawable)
-	|| (ee->request_code == X_PolySegment && ee->error_code == BadDrawable)
-	|| (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch)
-	|| (ee->request_code == X_GrabButton && ee->error_code == BadAccess)
-	|| (ee->request_code == X_GrabKey && ee->error_code == BadAccess)
-	|| (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
-		return 0;
-	else if (ee->request_code == X_ChangeWindowAttributes
-	&& ee->error_code == BadAccess)
-		DIE("filetwm: another window manager may already be running.\n");
-	fprintf(stderr, "filetwm: fatal error: request code=%d, error code=%d\n",
-		ee->request_code, ee->error_code);
-	return xerrorxlib(dpy, ee); /* may call exit */
-}
-
-int
-xerrordummy(Display *dpy, XErrorEvent *ee)
-{
-	return 0;
 }
 
 /***********************
@@ -1127,7 +1126,7 @@ buttonpress(XEvent *e)
 		if (i >= 0) {
 			click = ClkTagBar;
 			arg.ui = 1 << i;
-		} else if (ev->x > x - TEXTW(stext))
+		} else if (ev->x > x - TEXTW(stxt))
 			click = ClkStatus;
 		else if (ev->x < TEXTW(lsymbol))
 			click = ClkLauncher;
@@ -1315,21 +1314,21 @@ propertynotify(XEvent *e)
 				c->isurgent = (wmh->flags & XUrgencyHint) ? 1 : 0;
 				seturgency(c); /* clear urgency if client is focussed */
 				XFree(wmh);
-				drawtopbar(0);
+				drawtopbar(1);
 			}
 			break;
 		}
 		if (ev->atom == XA_WM_NAME || ev->atom == xatom[NetWMName]) {
-			updatetitle(c);
-			if (c == sel)
-				if (!zenmode || (ev->time - c->zenping) > (zenmode * 1000)) {
-					strcpy(c->zenname, c->name);
-					drawtopbar(0);
-				}
+			/* retrieve the window title */
+			updateclientname(c);
+			if (c == sel && ev->time - c->zenping > zenmode * 1000)
+				strcpy(c->zenname, c->name);
 			c->zenping = ev->time;
+			drawtopbar(1);
 		}
 		if (ev->atom == xatom[NetWMWindowType])
-			updatewindowtype(c);
+			if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
+				setfullscreen(c, 1);
 	}
 }
 
@@ -1412,9 +1411,7 @@ grabstack(const Arg *arg)
 void
 killclient(const Arg *arg)
 {
-	if (!sel)
-		return;
-	if (!sendevent(sel, xatom[WMDelete])) {
+	if (sel && !sendevent(sel, xatom[WMDelete])) {
 		XGrabServer(dpy);
 		XSetErrorHandler(xerrordummy);
 		XSetCloseDownMode(dpy, DestroyAll);
@@ -1479,16 +1476,17 @@ togglefullscreen(const Arg *arg)
 		setfullscreen(sel, !sel->isfullscreen);
 }
 
+/**
+ * Toogle (add/remove) window to specified workspace(s),
+ * ensuring the window always remains on at least one workspace.
+ * @arg: contains ui parameter with a bitmask indicating the
+ *       workspace numbers to toggle for.
+ */
 void
 toggletag(const Arg *arg)
 {
-	unsigned int newtags;
-
-	if (!sel)
-		return;
-	newtags = sel->tags ^ (arg->ui & TAGMASK);
-	if (newtags) {
-		sel->tags = newtags;
+	if (sel && sel->tags ^ (arg->ui & TAGMASK)) {
+		sel->tags = sel->tags ^ (arg->ui & TAGMASK);
 		arrange();
 	}
 }
@@ -1604,7 +1602,7 @@ setup(void)
 	/* EWMH support per view */
 	PROPSET(root, NetSupported, XA_ATOM, 32, xatom, NetLast);
 	XDeleteProperty(dpy, root, xatom[NetClientList]);
-	/* init bars */
+	/* init topbar */
 	barwin = XCreateWindow(dpy, root, mons->mx, BARY, mons->mw, BARH, 0,
 		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
 		CWOverrideRedirect|CWBackPixmap|CWEventMask, &(XSetWindowAttributes){
