@@ -148,7 +148,6 @@ typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 
 /* function declarations */
 static void restack(Client *c, int mode);
-void setfullscreen(Client *c, int fullscreen);
 
 /* function declarations callable from config plugins */
 void focusstack(const Arg *arg);
