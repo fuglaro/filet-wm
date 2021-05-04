@@ -229,7 +229,7 @@ static Window dwin;
 * Configuration Section
 * Allows config plugins to change config variables.
 * The defaultconfig method has plugin compatible code but check the README
-* for the macros you need to work in the plugin.
+* for details including the flavors of the macros that will work in the plugin.
 ************************/
 
 #define S(T, N, V) N = V /* compatibily for plugin-flavor macro */
