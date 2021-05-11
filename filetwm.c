@@ -418,6 +418,13 @@ resize(Client *c, int x, int y, int w, int h)
 	int m1, m2;
 	XWindowChanges wc;
 
+	/* set minimum possible size */
+	w = MAX(1, w);
+	h = MAX(1, h);
+	/* remain in visible area */
+	x = MAX(1 - w - 2*c->bw, MIN(sw - 1, x));
+	y = MAX(1 + (topbar?BARH:0) - h - 2*c->bw, MIN(sh - 1 - (topbar?0:BARH), y));
+
 	if (c->isfloating && !c->isfullscreen) {
 		c->fx = x;
 		c->fy = y;
@@ -435,15 +442,6 @@ resize(Client *c, int x, int y, int w, int h)
 		if (abs((WINY(mons[m2]) + WINH(mons[m2])) - (y + h + 2*c->bw)) < snap)
 			h = WINY(mons[m2]) + WINH(mons[m2]) - y - 2*c->bw;
 	}
-
-	/* set minimum possible size */
-	w = MAX(1, w);
-	h = MAX(1, h);
-	/* return to visible area */
-	x = (x > sw) ? sw - WIDTH(c) : x;
-	y = (y > sh) ? sh - HEIGHT(c) : y;
-	x = (x + w + 2 * c->bw < 0) ? 0 : x;
-	y = (y + h + 2 * c->bw < 0) ? 0 : y;
 
 	/* adjust for aspect limits */
 	/* see last two sentences in ICCCM 4.1.2.3 */
