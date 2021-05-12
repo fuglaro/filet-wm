@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <X11/cursorfont.h>
@@ -884,7 +883,7 @@ grabresizeabort()
 void
 rawmotion()
 {
-	int rx, ry, x, y, i;
+	int rx, ry, x, y;
 	static int lx = 0, ly = 0;
 	unsigned int mask;
 	Window cw;
@@ -917,14 +916,8 @@ rawmotion()
 		XRaiseWindow(dpy, barwin);
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
-		/* do the equivalent of "did I STUTTER!?" when requesting the
-		   keyboard grab */
-		for (i = 0; i < 1000 && XGrabKeyboard(dpy, root, True, GrabModeAsync,
-				GrabModeAsync, CurrentTime) != GrabSuccess; i++)
-			nanosleep(&(struct timespec){.tv_sec = 0, .tv_nsec = 10000000}, NULL);
 	} else if (!BARZONE(rx, ry) && barfocus) {
 		barfocus = 0;
-		XUngrabKeyboard(dpy, CurrentTime);
 		if (sel)
 			focus(sel);
 		restack(NULL, CliRefresh);
