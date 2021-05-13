@@ -522,20 +522,14 @@ restack(Client *c, int mode)
 	wc.stack_mode = Below;
 	wc.sibling = up[i - 1];
 
-	/* order floating/fullscreen layer */
-	for (c = clients; c; c = c->next)
-		if (c != pinned && c != raised && c->isfloating) {
-			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
-			wc.sibling = c->win;
-			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
-		}
-	/* order tiled layer */
-	for (c = clients; c; c = c->next)
-		if (c != pinned && c != raised && !c->isfloating) {
-			XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
-			wc.sibling = c->win;
-			PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
-		}
+	/* order layers - floating then tiled then fullscreen (if not raised) */
+	for (i = 0; i < 3; i++) /* i is layers: 0=floating, 1=tiled, 3=fullscreen */
+		for (c = clients; c; c = c->next)
+			if (c != pinned && c != raised && !c->isfloating + c->isfullscreen == i) {
+				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
+				wc.sibling = c->win;
+				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
+			}
 }
 
 int
