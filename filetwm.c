@@ -411,6 +411,9 @@ detach(Client *c)
 	*tc = c->next;
 }
 
+/**
+ * Query the X server for a window property.
+ */
 Atom
 getatomprop(Client *c, Atom prop)
 {
