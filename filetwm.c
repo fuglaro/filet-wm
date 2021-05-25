@@ -20,6 +20,8 @@
  * a click-to-raise behavior. Mouse motion is stateful and supports different
  * drag-modes for moving and resizing windows.
  *
+ * Consult the included man page for further documentation. 
+ *
  * To understand everything else, start reading main().
  */
 
