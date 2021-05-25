@@ -367,6 +367,9 @@ defaultconfig(void)
 * Utility functions
 ************************/
 
+/**
+ * Add a client to the top of the list.
+ */
 void
 attach(Client *c)
 {
@@ -374,6 +377,9 @@ attach(Client *c)
 	clients = c;
 }
 
+/**
+ * Update the X Server with a client's windowing details.
+ */
 void
 configure(Client *c)
 {
@@ -393,6 +399,9 @@ configure(Client *c)
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
+/**
+ * Remove a specific client from the list.
+ */
 void
 detach(Client *c)
 {
