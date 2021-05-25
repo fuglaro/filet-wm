@@ -233,10 +233,13 @@ static Window dwin;
 * The defaultconfig method has plugin compatible code but check the README
 * for details including the flavors of the macros that will work in the plugin.
 ************************/
-
+/* single value config assignment */
 #define S(T, N, V) N = V /* compatibily for plugin-flavor macro */
+/* variable length config assignment */
 #define V(T, N, L, ...) do {static T _##N[] = __VA_ARGS__; N = _##N; L} while(0)
+/* pointer array config assignment */
 #define P(T, N, ...) V(T,N,,__VA_ARGS__;)
+/* array of fixed length config assignment */
 #define A(T, N, ...) V(T,N,N##len = (sizeof _##N/sizeof _##N[0]);,__VA_ARGS__;)
 
 /* configurable values (see defaultconfig) */
