@@ -428,6 +428,17 @@ getatomprop(Client *c, Atom prop)
 	return atom;
 }
 
+/**
+ * Resize the window of the given client, if the values change,
+ * respecting edge snapping, client specified sizing constraints,
+ * and sizing implications of floating and fullscreen states.
+ * The resulting size is stored on the client's size attributes, and
+ * when in floating mode, the size before respecting
+ * adjustments and constraints is stored on the client's f* size
+ * attributes, for future reference.
+ * Also, the border width of the window is updated depending
+ * on the fullscreen state.
+ */
 void
 resize(Client *c, int x, int y, int w, int h)
 {
