@@ -296,7 +296,7 @@ defaultconfig(void)
 		"-sb", "#335577", NULL });
 	P(char*, terminal, { "st", NULL });
 	#define VOLCMD(A) ("amixer -q set Master "#A"; xsetroot -name \"Volume: "\
-		"$(amixer sget Master | awk -F'[][]' '/dB/ { print $2, $6 }')\"")
+		"$(amixer sget Master | awk -F'[][]' '/%]/ { print $2, $6 }')\"")
 	P(char*, upvol, { "bash", "-c", VOLCMD("5%+"), NULL });
 	P(char*, downvol, { "bash", "-c", VOLCMD("5%-"), NULL });
 	P(char*, mutevol, { "bash", "-c", VOLCMD("toggle"), NULL });
