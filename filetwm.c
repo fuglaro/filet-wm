@@ -296,8 +296,8 @@ defaultconfig(void)
 		"-sb", "#335577", NULL });
 	P(char*, terminal, { "st", NULL });
 	#define VOLCMD(A) ("amixer -q set Master "#A"; xsetroot -name \"Volume: "\
-		"$(amixer sget Master | awk -F'[][]' '/%]/ { print $2, $6 }'"\
-		"| head -n 1)\"")
+		"$(amixer sget Master | grep -m1 '%]' | "\
+		"sed -e 's/[^\\[]*\\[\\([0-9]*%\\)[^\\[]*\\[\\([onf]*\\).*/\\1 \\2/')\"")
 	P(char*, upvol, { "bash", "-c", VOLCMD("5%+"), NULL });
 	P(char*, downvol, { "bash", "-c", VOLCMD("5%-"), NULL });
 	P(char*, mutevol, { "bash", "-c", VOLCMD("toggle"), NULL });
