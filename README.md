@@ -123,10 +123,16 @@ cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 #include <X11/XF86keysym.h>
 #include <X11/Xlib.h>
 #define LEN(X) (sizeof X / sizeof X[0])
+/* varible overide */
 #define S(T, N, V) extern T N; N = V;
-#define V(T, N, L, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N L
+#define V(T, N, L, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N L]]
+/* known length or null terminated array override */
 #define P(T, N, ...) V(T,N,,__VA_ARGS__;)
+/* variable length array override */
 #define A(T, N, ...) V(T,N,;extern int N##len; N##len = LEN(_##N),__VA_ARGS__;)
+#define RV(T, N, L, ...) do {static T _##N[] = __VA_ARGS__; N = _##N; L} while(0)
+/* known length or null terminated new array declaration */
+#define RP(T, N, ...) RV(T,N,,__VA_ARGS__;)
 enum { ClkLauncher, ClkWinTitle, ClkStatus, ClkTagBar, ClkLast };
 enum { DragMove, DragSize, DragTile, DragCheck, DragNone };
 typedef struct { int mx, my, mw, mh; } Monitor;
@@ -189,6 +195,8 @@ void config(void) {
     P(char*, dimup, { "xbacklight", "-inc", "5", NULL });
     P(char*, dimdown, { "xbacklight", "-dec", "5", NULL });
     P(char*, help, { "xterm", "-e", "bash", "-c", "man filetwm || man -l ~/.config/filetwmconf.1", NULL });
+    /* new declaration doesn't override an existing value but is injected via inclusion when overriding keys */
+    RP(char*, poweroff, {"bash", "-c", "sudo poweroff", NULL });
 
     /* keyboard shortcut definitions */
     #define AltMask Mod1Mask
@@ -224,6 +232,7 @@ void config(void) {
     {           0, XF86XK_AudioMute, spawn, {.v = &mutevol } },
     {    0, XF86XK_AudioRaiseVolume, spawn, {.v = &upvol } },
     {               0, XF86XK_Sleep, spawn, {.v = &suspend } },
+    {            0, XF86XK_PowerOff, spawn, {.v = &poweroff } },
     {     0, XF86XK_MonBrightnessUp, spawn, {.v = &dimup } },
     {   0, XF86XK_MonBrightnessDown, spawn, {.v = &dimdown } },
     TK(1) TK(2) TK(3) TK(4)
