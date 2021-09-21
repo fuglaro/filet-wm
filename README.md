@@ -74,6 +74,7 @@ This project explores how far a software product can be pushed in terms of simpl
 The heart of this project is a fork of dwm. This started as a programming exercise to aggressively simplify a codebase already highly respected for its simplicity. It ended up making some significant user experience changes, largely from the opinions stated above. I would best describe it now as dwm with a cleaner, simpler, and more approachable user interface, whilst still holding on to powerful features.
 
 Significant changes:
+* Configurable after compilation (needed for distro packaging).
 * Unified tiling, fullscreen and floating modes.
 * Simpler monitor support - unified stack and workspaces.
 * Focus follows mouse and clicks raise.
@@ -253,14 +254,21 @@ void config(void) {
 }
 ```
 
+# Future development goals
+
+* Pin launcher window location to launcher button.
+* Better tile layout that also works for portrait mode.
+* Further code simplification and feature trimming.
+* Lift topbar trigger that doesn't activate in games, pin mode stays higher? hold key to trigger?
+
 # Thanks to, grateful forks, and contributions
 
 We stand on the shoulders of giants. They own this, far more than I do.
 
+* https://suckless.org/
 * https://archlinux.org/
 * https://github.com
 * https://github.com/torvalds/linux
 * https://www.x.org/wiki/XorgFoundation
-* https://suckless.org/
 * https://www.texturex.com/fractal-textures/fractal-design-picture-wallpaper-stock-art-image-definition-free-neuron-chaos-fractal-fracture-broken-synapse-texture/
 * https://keithp.com/blogs/Cursor_tracking/
