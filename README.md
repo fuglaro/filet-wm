@@ -260,6 +260,7 @@ void config(void) {
 * Better tile layout that also works for portrait mode.
 * Further code simplification and feature trimming.
 * Lift topbar trigger that doesn't activate in games, pin mode stays higher? hold key to trigger?
+* Lift topbar trigger that still works when not at screen edge, hold Win key and mouse move?
 
 # Thanks to, grateful forks, and contributions
 
