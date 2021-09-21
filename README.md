@@ -266,7 +266,7 @@ void config(void) {
     * Windows never avoid drawing over topbar.
     * Don't show window name. Nobody cares. No need for zenmode then.
     * Remove all mouse options on topbar except help launching.
-    * Position is locked to top center of first monitor.
+    * Position is locked to bottom center of first monitor (now only bottom bar).
     * Width is the minimal size but auto expanding.
 
 # Thanks to, grateful forks, and contributions
