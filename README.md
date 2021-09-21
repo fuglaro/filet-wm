@@ -259,8 +259,15 @@ void config(void) {
 * Pin launcher window location to launcher button.
 * Better tile layout that also works for portrait mode.
 * Further code simplification and feature trimming.
-* Lift topbar trigger that doesn't activate in games, pin mode stays higher? hold key to trigger?
-* Lift topbar trigger that still works when not at screen edge, hold Win key and mouse move?
+* Non invasive, cleaner topbar:
+    * Lift topbar trigger that doesn't activate in games.
+    * Lift topbar trigger that still works when not at screen edge.
+    * Lift topbar when Win key held down (also inspected when mouse moves for captured input scenarios).
+    * Windows never avoid drawing over topbar.
+    * Don't show window name. Nobody cares. No need for zenmode then.
+    * Remove all mouse options on topbar except help launching.
+    * Position is locked to top center of first monitor.
+    * Width is the minimal size but auto expanding.
 
 # Thanks to, grateful forks, and contributions
 
