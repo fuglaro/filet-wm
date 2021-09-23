@@ -50,12 +50,8 @@ Window focus follows the mouse and clicks will raise a window. If any
 floating window is raised, all floating windows will sit above tiled windows.
 Fullscreen windows that are not raised will sit behind the tiled layer.
 .P
-The primary monitor contains a small status bar which contains four sections:
-a launcher button (to open applications), the selected window title, a
-customisable status pane, and a display of the virtual workspaces. The virtual
-workspace pane shows the selected workspace (highlighted), dots to indicate
-which workspaces contain windows, and inversed colors when a contained window
-has an alert.
+There is a small status bar which contains a display of the virtual workspaces,
+with the selected workspace highlighted, and a customisable status message.
 .P
 Windows have thin borders and indicate the focus state with a highlight color.
 
@@ -63,6 +59,7 @@ Windows have thin borders and indicate the focus state with a highlight color.
 The primary control interface is intended to be via the keyboard shortcuts
 detailed above, along with mouse control for window focus, click-to-raise,
 and all sizing movements, but additional mouse controls are supported:
+
 .RS
 .TS
 tab (@);
@@ -71,14 +68,12 @@ Area@Button@Action
 _
 Window Top/Left Border@Button1:@initiate move
 Window Bottom/Right Border@Button1:@initiate resize
-Launcher Button@Button1:@open launcher
-Window Title@Button1:@next window
-Window Title@Button3:@previous window
-Status Section@Button1:@open help
+Status Pane@Button1:@open help
 Virtual Workspaces@Button1:@show workspace
 Virtual Workspaces@Button3:@relocate window
 .TE
 .RE
+
 
 .SH CUSTOMIZATION
 .SS Config plugins

@@ -61,7 +61,7 @@
 #define TEXTW(X) (drawgettextwidth(X) + TEXTPAD)
 
 /* edge dragging and region macros*/
-#define BARZONE(X, Y) (topbar ? Y <= mons->my : Y >= mons->my + mons->mh - 1\
+#define BARZONE(X, Y) (bar ? Y <= mons->my : Y >= mons->my + mons->mh - 1\
 	&& (X >= mons->mx) && (X <= mons->mx + mons->mw))
 #define INZONE(C, X, Y) (X >= C->x - C->bw && Y >= C->y - C->bw\
 	&& X <= C->x + WIDTH(C) + C->bw && Y <= C->y + HEIGHT(C) + C->bw)
@@ -72,13 +72,13 @@
 
 /* monitor macros */
 #define BARH (TEXTPAD + 2)
-#define BARY (topbar ? mons->my : mons->my + WINH(mons[0]))
+#define BARY (bar ? mons->my : mons->my + WINH(mons[0]))
 #define INMON(X, Y, M)\
 	(X >= M.mx && X < M.mx + M.mw && Y >= M.my && Y < M.my + M.mh)
 #define MONNULL(M) (M.mx == 0 && M.my == 0 && M.mw == 0 && M.mh == 0)
 #define SETMON(M, R) {M.mx = R.x; M.my = R.y; M.mw = R.width; M.mh = R.height;}
 #define WINH(M) (&M == mons ? M.mh - BARH : M.mh)
-#define WINY(M) (&M == mons && topbar ? M.my + BARH : M.my)
+#define WINY(M) (&M == mons && bar ? M.my + BARH : M.my)
 #define ONMON(C, M) INMON(C->x + WIDTH(C)/2, C->y + HEIGHT(C)/2, M)
 
 /* window macros */
@@ -98,7 +98,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck, /* EWMH atoms */
        /* default atoms */
        WMProtocols, WMDelete, WMState, WMTakeFocus, XAtomLast };
 /* bar click regions */
-enum { ClkLauncher, ClkWinTitle, ClkStatus, ClkTagBar, ClkLast };
+enum { ClkStatus, ClkTagBar, ClkLast };
 /* mouse motion modes */
 enum { DragMove, DragSize, DragTile, DragCheck, DragNone };
 /* window stack actions */
@@ -122,17 +122,15 @@ typedef struct {
 /* clients wrap managed windows */
 typedef struct Client Client;
 struct Client {
-	char name[256], zenname[256];
 	float mina, maxa;
 	int x, y, w, h;
 	int fx, fy, fw, fh; /*remember during tiled and fullscreen states */
 	int basew, baseh, maxw, maxh, minw, minh;
 	int bw, fbw, oldbw;
 	unsigned int tags;
-	int isfloating, isurgent, fstate, isfullscreen;
+	int isfloating, fstate, isfullscreen;
 	Client *next;
 	Window win;
-	Time zenping;
 };
 
 /* keyboard shortcut action */
@@ -185,8 +183,8 @@ static void unmapnotify(XEvent *e);
 static char stxt[256] = { /* status text */
 	'F','i','l','e','t','L','i','g','n','u','x','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
-static Window barwin;        /* the topbar */
-static int barfocus;         /* when the topbar is forced raised */
+static Window barwin;        /* the bar */
+static int barfocus;         /* when the bar is forced raised */
 static int dragmode = DragNone; /* mouse mode (resize/repos/arrange/etc) */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int tagset = 1; /* mask for which workspaces are displayed */
@@ -213,7 +211,7 @@ static int randroutputchange;     /* holds event-type: monitor change */
 static Atom xatom[XAtomLast];     /* holds X types */
 static int end;                   /* end session trigger (quit) */
 static Display *dpy;              /* X session display reference */
-static Drawable drawable;         /* canvas for drawing (topbar) */
+static Drawable drawable;         /* canvas for drawing (bar) */
 static XftDraw *drawablexft;      /* font rendering for canvas */
 static GC gc;                     /* graphics context */
 static Client *clients, *sel;     /* references to managed windows */
@@ -244,9 +242,9 @@ static Window dwin;
 
 /* configurable values (see defaultconfig) */
 Monitor *mons;
-char *lsymbol, *font, **colors, **tags, **launcher, **terminal, **upvol,
+char *font, **colors, **tags, **launcher, **terminal, **upvol,
 	**downvol, **mutevol, **suspend, **dimup, **dimdown, **help;
-int borderpx, snap, topbar, zenmode, tagslen, monslen, *nmain, keyslen,
+int borderpx, snap, bar, tagslen, monslen, *nmain, keyslen,
 	buttonslen;
 float *mfact;
 KeySym stackrelease;
@@ -259,9 +257,7 @@ defaultconfig(void)
 	/* appearance */
 	S(int, borderpx, 1); /* border pixel width of windows */
 	S(int, snap, 8); /* edge snap pixel distance */
-	S(int, topbar, 1); /* 0 means bottom bar */
-	S(int, zenmode, 3); /* ignores showing rapid client name changes (seconds) */
-	S(char*, lsymbol, ">"); /* launcher symbol */
+	S(int, bar, 1); /* 0 means bottom bar */
 	S(char*, font, "monospace:size=8");
 	/* colors (must be five colors: fg, bg, highlight, border, sel-border) */
 	P(char*, colors, { "#dddddd", "#111111", "#335577", "#555555", "#dd4422" });
@@ -307,7 +303,7 @@ defaultconfig(void)
 		"$(xbacklight | cut -d. -f1)%\"")
 	P(char*, dimup, { "bash", "-c", DIMCMD("-inc"), NULL });
 	P(char*, dimdown, { "bash", "-c", DIMCMD("-dec"), NULL });
-	P(char*, help, { "st", "-t", "Help", "-e", "bash", "-c",
+	P(char*, help, { "st", "-e", "bash", "-c",
 		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
 
 	/* keyboard shortcut definitions */
@@ -352,9 +348,6 @@ defaultconfig(void)
 	/* bar actions */
 	A(Button, buttons, {
 		/* click,      button, function / argument */
-		{ ClkLauncher, Button1, spawn, {.v = &launcher } },
-		{ ClkWinTitle, Button1, focusstack, {.i = +1 } },
-		{ ClkWinTitle, Button3, focusstack, {.i = -1 } },
 		{ ClkStatus,   Button1, spawn, {.v = &help } },
 		{ ClkTagBar,   Button1, view, {0} },
 		{ ClkTagBar,   Button3, tag, {0} },
@@ -451,7 +444,7 @@ resize(Client *c, int x, int y, int w, int h)
 	h = MAX(1, h);
 	/* remain in visible area */
 	x = MAX(1 - w - 2*c->bw, MIN(sw - 1, x));
-	y = MAX(1 + (topbar?BARH:0) - h - 2*c->bw, MIN(sh - 1 - (topbar?0:BARH), y));
+	y = MAX(1 + (bar?BARH:0) - h - 2*c->bw, MIN(sh - 1 - (bar?0:BARH), y));
 
 	if (c->isfloating && !c->isfullscreen) {
 		c->fx = x;
@@ -586,26 +579,6 @@ sendevent(Client *c, Atom proto)
 	return exists;
 }
 
-/**
- * Sets the urgency of the given client.
- * Call this function to set the status to urgent, but
- * if the given client is focussed, this will have the opposite
- * effect and will ensure the urgent status is unset.
- */
-void
-seturgency(Client *c)
-{
-	XWMHints *wmh;
-
-	if (!c || c->isurgent == (sel != c) || !(wmh = XGetWMHints(dpy, c->win)))
-		return;
-	c->isurgent = (sel != c);
-	/* update the client's hint property with resulting urgency status */
-	wmh->flags = c->isurgent?(wmh->flags|XUrgencyHint):(wmh->flags&~XUrgencyHint);
-	XSetWMHints(dpy, c->win, wmh);
-	XFree(wmh);
-}
-
 void
 sigchld(int unused)
 {
@@ -615,36 +588,6 @@ sigchld(int unused)
 
 	/* immediately release resources associated with any zombie child */
 	while (0 < waitpid(-1, NULL, WNOHANG));
-}
-
-/**
- * Retrieve the current client window name by first checking the
- * legacy XA_WM_NAME property on the window and then overriding
- * with the EWMH compliant property if one exists.
- * If neither are present, the name is set to an empty string.
- */
-void
-updateclientname(Client *c) {
-	char **v = NULL;
-	XTextProperty p;
-
-	/* set to empty string and protect from upcoming overflows */
-	c->name[0] = c->name[sizeof(c->name) - 1] = '\0';
-
-	/* retrieve legacy name property */
-	if (XGetTextProperty(dpy, c->win, &p, XA_WM_NAME) && p.nitems) {
-		if (XmbTextPropertyToTextList(dpy, &p, &v, &di) >= Success && *v) {
-			strncpy(c->name, *v, sizeof(c->name) - 1);
-			XFreeStringList(v);
-		}
-		XFree(p.value);
-	}
-
-	/* retrieve and override name from EWMH supporting clients */
-	if (XGetTextProperty(dpy, c->win, &p, xatom[NetWMName]) && p.nitems) {
-		strncpy(c->name, (char *)p.value, sizeof(c->name) - 1);
-		XFree(p.value);
-	}
 }
 
 void
@@ -792,42 +735,19 @@ drawtext(int x, int y, int w, int h, const char *text, const XftColor *fg,
 }
 
 void
-drawtopbar(int zen)
+drawbar()
 {
-	int i, x, w;
-	int boxs = TEXTPAD / 9;
-	int boxw = TEXTPAD / 6 + 2;
-	unsigned int occ = 0, urg = 0;
-	Client *c;
+	int i, x = 0;
 
-	/* get urgency and occupied status for each tag */
-	for (c = clients; c; c = c->next) {
-		occ |= c->tags;
-		urg |= c->tags * c->isurgent;
+	/* draw tags */
+	for (i = 0; i < tagslen; i++) {
+		drawtext(x, 0, TEXTW(tags[i]), BARH, tags[i], &cols[fg],
+			&cols[tagset & 1 << i ? mark : bg]);
+		x += TEXTW(tags[i]);
 	}
 
-	/* draw launcher button (left align) */
-	drawtext(0, 0, (x = TEXTW(lsymbol)), BARH, lsymbol, &cols[fg], &cols[mark]);
-
-	/* draw window title (left align) */
-	drawtext(x, 0, mons->mw - x, BARH,
-		sel ? (zen ? sel->zenname : sel->name) : "", &cols[fg], &cols[bg]);
-
-	/* draw tags (right align) */
-	x = mons->mw;
-	for (i = tagslen - 1; i >= 0; i--) {
-		x -= (w = TEXTW(tags[i]));
-		drawtext(x, 0, w, BARH, tags[i], &cols[urg & 1 << i ? bg : fg],
-			&cols[urg & 1 << i ? fg : (tagset & 1 << i ? mark : bg)]);
-		if (occ & 1 << i) {
-			XSetForeground(dpy, gc, cols[fg].pixel);
-			XFillRectangle(dpy, drawable, gc, x + boxs, boxs, boxw, boxw);
-		}
-	}
-
-	/* draw status (right align) */
-	w = TEXTW(stxt);
-	drawtext(x - w, 0, w, BARH, stxt, &cols[fg], &cols[bg]);
+	/* draw status */
+	drawtext(x, 0, mons->mw, BARH, stxt, &cols[fg], &cols[bg]);
 
 	/* display composited bar */
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, mons->mw, BARH, 0, 0);
@@ -857,8 +777,7 @@ focus(Client *c)
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	}
 	sel = c;
-	seturgency(c); /* clear urgency if set */
-	drawtopbar(0);
+	drawbar();
 }
 
 void
@@ -932,7 +851,7 @@ rawmotion()
 	if (dragmode != DragNone)
 		return;
 
-	/* top bar raise when mouse hits the screen edge.
+	/* bar raise when mouse hits the screen edge.
 	   especially useful for apps that capture the keyboard. */
 	if (BARZONE(rx, ry) && !barfocus) {
 		barfocus = 1;
@@ -1049,7 +968,7 @@ updatestatus(void)
 		}
 		XFree(p.value);
 	}
-	drawtopbar(1);
+	drawbar();
 }
 
 /***********************
@@ -1059,20 +978,17 @@ updatestatus(void)
 void
 buttonpress(XEvent *e)
 {
-	int i, x = mons->mw, click = ClkWinTitle;
+	int i, x = 0, click = ClkStatus;
 	Client *c;
 	Arg arg = {0};
 	XButtonPressedEvent *ev = &e->xbutton;
 
 	if (ev->window == barwin) {
-		for (i = tagslen - 1; i >= 0 && ev->x < (x -= TEXTW(tags[i])); i--);
-		if (i >= 0) {
+		for (i = 0; i < tagslen && ev->x > (x += TEXTW(tags[i])); i++);
+		if (i < tagslen) {
 			click = ClkTagBar;
 			arg.ui = 1 << i;
-		} else if (ev->x > x - TEXTW(stxt))
-			click = ClkStatus;
-		else if (ev->x < TEXTW(lsymbol))
-			click = ClkLauncher;
+		}
 		for (i = 0; i < buttonslen; i++)
 			if (click == buttons[i].click && buttons[i].button == ev->button)
 				buttons[i].func(arg.ui ? &arg : &buttons[i].arg);
@@ -1109,8 +1025,7 @@ clientmessage(XEvent *e)
 			/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
 			setfullscreen(c, (cme->data.l[0] == 1
 				|| (cme->data.l[0] == 2 && !c->isfullscreen)));
-	} else if (cme->message_type == xatom[NetActiveWindow])
-			seturgency(c);
+	}
 }
 
 void
@@ -1178,7 +1093,7 @@ expose(XEvent *e)
 	XExposeEvent *ev = &e->xexpose;
 
 	if (ev->count == 0)
-		drawtopbar(0);
+		drawbar();
 }
 
 void
@@ -1238,7 +1153,6 @@ maprequest(XEvent *e)
 		DIE("calloc failed.\n");
 	attach(c);
 	c->win = ev->window;
-	c->zenping = 0;
 	c->isfloating = 1;
 	c->tags = tagset;
 	/* geometry */
@@ -1247,9 +1161,6 @@ maprequest(XEvent *e)
 	c->fw = wa.width;
 	c->fh = wa.height;
 	c->oldbw = wa.border_width;
-	/* retrieve the window title */
-	updateclientname(c);
-	strcpy(c->zenname, c->name);
 	/* show window on same workspaces as its parent, if it has one */
 	if (XGetTransientForHint(dpy, ev->window, &trans) && (t = wintoclient(trans)))
 		c->tags = t->tags;
@@ -1292,7 +1203,6 @@ propertynotify(XEvent *e)
 	Client *c;
 	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
-	XWMHints *wmh;
 
 	if ((ev->window == root) && (ev->atom == XA_WM_NAME))
 		updatestatus();
@@ -1309,22 +1219,6 @@ propertynotify(XEvent *e)
 		case XA_WM_NORMAL_HINTS:
 			updatesizehints(c);
 			break;
-		case XA_WM_HINTS:
-			if ((wmh = XGetWMHints(dpy, c->win))) {
-				c->isurgent = (wmh->flags & XUrgencyHint) ? 1 : 0;
-				seturgency(c); /* clear urgency if client is focussed */
-				XFree(wmh);
-				drawtopbar(1);
-			}
-			break;
-		}
-		if (ev->atom == XA_WM_NAME || ev->atom == xatom[NetWMName]) {
-			/* retrieve the window title */
-			updateclientname(c);
-			if (c == sel && ev->time - c->zenping > zenmode * 1000)
-				strcpy(c->zenname, c->name);
-			c->zenping = ev->time;
-			drawtopbar(1);
 		}
 		if (ev->atom == xatom[NetWMWindowType])
 			if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
@@ -1495,6 +1389,7 @@ void
 view(const Arg *arg)
 {
 	tagset = arg->ui & TAGMASK;
+	drawbar();
 	arrange();
 }
 
@@ -1502,6 +1397,7 @@ void
 viewshift(const Arg *arg)
 {
 	tagset = TAGSHIFT(tagset, arg->i);
+	drawbar();
 	arrange();
 }
 
@@ -1603,7 +1499,7 @@ setup(void)
 	/* EWMH support per view */
 	PROPSET(root, NetSupported, XA_ATOM, 32, xatom, NetLast);
 	XDeleteProperty(dpy, root, xatom[NetClientList]);
-	/* init topbar */
+	/* init bar */
 	barwin = XCreateWindow(dpy, root, mons->mx, BARY, mons->mw, BARH, 0,
 		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
 		CWOverrideRedirect|CWBackPixmap|CWEventMask, &(XSetWindowAttributes){

@@ -47,12 +47,12 @@ void config(void) {
 ```
 Save it as `filetwmconf.c`, then install it to the user config location using the command found in the comment.
 
-Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and top-bar actions. Please see the defaultconfig method in the `filetwm.c` file, or the Advanced Config example below, for more details.
+Many other configurations can be made via this plugin system and supported options include: colors, layout, borders, keyboard commands, launcher command, monitor configuration, and bar actions. Please see the defaultconfig method in the `filetwm.c` file, or the Advanced Config example below, for more details.
 
 If you change the behaviours around documented things, like keyboard shortcuts, you can update the Help action by creating a custom man page at `~/.config/filetwmconf.1`.
 
 ### Status bar text
-To configure the status text on the top-bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
+To configure the status text on the bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
 
 ## Design and Engineering Philosophies
 
@@ -134,7 +134,7 @@ cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 #define RV(T, N, L, ...) do {static T _##N[] = __VA_ARGS__; N = _##N; L} while(0)
 /* known length or null terminated new array declaration */
 #define RP(T, N, ...) RV(T,N,,__VA_ARGS__;)
-enum { ClkLauncher, ClkWinTitle, ClkStatus, ClkTagBar, ClkLast };
+enum { ClkStatus, ClkTagBar, ClkLast };
 enum { DragMove, DragSize, DragTile, DragCheck, DragNone };
 typedef struct { int mx, my, mw, mh; } Monitor;
 typedef union {
@@ -176,9 +176,7 @@ void config(void) {
     /* appearance */
     S(int, borderpx, 5); /* border pixel width of windows */
     S(int, snap, 32); /* edge snap pixel distance */
-    S(int, topbar, 0); /* 0 means bottom bar */
-    S(int, zenmode, 0); /* ignores showing rapid client name changes (seconds) */
-    S(char*, lsymbol, "Start>"); /* launcher symbol */
+    S(int, bar, 0); /* 0 means bottom bar */
     S(char*, font, "size=10");
     P(char*, colors, { "#ddffdd", "#335533", "#338877", "#558855", "#dd6622" }); /* colors (must be five colors: fg, bg, highlight, border, sel-border) */
     A(char*, tags, { "[ ]", "[ ]", "[ ]", "[ ]"}); /* virtual workspaces (must be 32 or less, *usually*) */
@@ -242,9 +240,6 @@ void config(void) {
   /* bar actions */
   A(Button, buttons, {
     /* click,      button, function / argument */
-    { ClkLauncher, Button1, spawn, {.v = &launcher } },
-    { ClkWinTitle, Button1, focusstack, {.i = +1 } },
-    { ClkWinTitle, Button3, focusstack, {.i = -1 } },
     { ClkStatus,   Button1, spawn, {.v = &help } },
     { ClkStatus,   Button2, spawn, {.v = &help } },
     { ClkStatus,   Button3, spawn, {.v = &help } },
@@ -259,13 +254,13 @@ void config(void) {
 * Pin launcher window location to launcher button.
 * Better tile layout that also works for portrait mode.
 * Further code simplification and feature trimming.
-* Non invasive, cleaner topbar:
-    * Lift topbar trigger that doesn't activate in games.
-    * Lift topbar trigger that still works when not at screen edge.
-    * Lift topbar when Win key held down (also inspected when mouse moves for captured input scenarios).
-    * Windows never avoid drawing over topbar.
+* Non invasive, cleaner bar:
+    * Lift bar trigger that doesn't activate in games.
+    * Lift bar trigger that still works when not at screen edge.
+    * Lift bar when Win key held down (also inspected when mouse moves for captured input scenarios).
+    * Windows never avoid drawing over bar.
     * Don't show window name. Nobody cares. No need for zenmode then.
-    * Remove all mouse options on topbar except help launching.
+    * Remove all mouse options on bar except help launching.
     * Position is locked to bottom center of first monitor (now only bottom bar).
     * Width is the minimal size but auto expanding.
 
