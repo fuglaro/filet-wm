@@ -9,16 +9,11 @@ All windows start out floating and can be switched between the tiled layer on de
 
 Window focus follows the mouse and clicks will raise a window. If any floating window is raised, all floating windows will sit above tiled windows. Fullscreen windows that are not raised will sit behind the tiled layer.
 
-The primary monitor contains a small status bar which contains four sections:
-* a launcher button (to open applications),
-* the selected window title,
-* a customisable status pane, and,
-* a display of the virtual workspaces.
-The virtual workspace pane shows the selected workspace (highlighted), dots to indicate which workspaces contain windows, and inversed colors when a contained window has an alert.
+There is a minimal status bar which contains a display of the virtual workspaces, highlighting the current selection, and a customisable status pane.
 
 Windows have thin borders and indicate the focus state with a highlight color.
 
-The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and all sizing movements, but additional mouse controls are supported.
+The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and sizing movements.
 
 See the https://github.com/fuglaro/filet-lignux project for the full filet-lignux desktop environment.
 
@@ -251,18 +246,11 @@ void config(void) {
 
 # Future development goals
 
+* Declare loop variables in the loop
+* Don't use unsigned ints unless needed.
 * Pin launcher window location to launcher button.
-* Better tile layout that also works for portrait mode.
 * Further code simplification and feature trimming.
-* Non invasive, cleaner bar:
-    * Lift bar trigger that doesn't activate in games.
-    * Lift bar trigger that still works when not at screen edge.
-    * Lift bar when Win key held down (also inspected when mouse moves for captured input scenarios).
-    * Windows never avoid drawing over bar.
-    * Don't show window name. Nobody cares. No need for zenmode then.
-    * Remove all mouse options on bar except help launching.
-    * Position is locked to bottom center of first monitor (now only bottom bar).
-    * Width is the minimal size but auto expanding.
+* Merge launcher button with help. Launcher should contain quick access help.
 
 # Thanks to, grateful forks, and contributions
 
