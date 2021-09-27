@@ -160,7 +160,6 @@ void zoom(const Arg *arg);
 
 /* event handler function declarations */
 static void buttonpress(XEvent *e);
-static void buttonrelease(XEvent *e);
 static void clientmessage(XEvent *e);
 static void configurerequest(XEvent *e);
 static void destroynotify(XEvent *e);
@@ -188,7 +187,6 @@ static unsigned int tagset = 1; /* mask for which workspaces are displayed */
  */
 static void (*handler[LASTEvent]) (XEvent *) = { /* XEvent callbacks */
 	[ButtonPress] = buttonpress,
-	[ButtonRelease] = buttonrelease,
 	[ClientMessage] = clientmessage,
 	[ConfigureRequest] = configurerequest,
 	[DestroyNotify] = destroynotify,
@@ -981,12 +979,6 @@ buttonpress(XEvent *e)
 }
 
 void
-buttonrelease(XEvent *e)
-{
-	grabresizeabort();
-}
-
-void
 clientmessage(XEvent *e)
 {
 	XClientMessageEvent *cme = &e->xclient;
@@ -1054,7 +1046,7 @@ destroynotify(XEvent *e)
 }
 
 /*
- * Handle raw key presses, releases, mouse motion events,
+ * Handle raw presses, releases, mouse motion events,
  * and monitor changes.
  * This does not handle the keyboard shorcuts, but rather
  * the additional keyboard related functionaltily:
@@ -1070,16 +1062,21 @@ exthandler(XEvent *ev)
 	if (ev->xcookie.evtype == XI_Motion) {
 		motion();
 		return;
-	}
+	} else if (ev->xcookie.evtype == randroutputchange)
+		updatemonitors();
+
+	grabresizeabort();
 	XGetEventData(dpy, &ev->xcookie);
 	XIRawEvent *re = ev->xcookie.data;
+
 	/* raise bar if trigger key is held down */
 	if (ev->xcookie.evtype == XI_RawKeyPress && KCODE(barshow) == re->detail) {
 		barfocus = 1;
 		XRaiseWindow(dpy, barwin);
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
-	} else if (ev->xcookie.evtype == XI_RawKeyRelease) {
+	}
+	else if (ev->xcookie.evtype == XI_RawKeyRelease) {
 		/* lower bar if trigger key is released */
 		if (KCODE(barshow) == re->detail) {
 			barfocus = 0;
@@ -1089,14 +1086,11 @@ exthandler(XEvent *ev)
 		}
 		/* zoom after cycling windows if releasing the modifier key, this gives
 			 Alt+Tab+Tab... behavior like with common window managers */
-		if (ctrlmode == ZoomStack && KCODE(stackrelease) == re->detail) {
+		else if (ctrlmode == ZoomStack && KCODE(stackrelease) == re->detail) {
 			restack(sel, CliZoom);
 			arrange(); /* zooming tiled windows can rearrange tiling */
 		}
-		/* keyboard triggered resize or move release */
-		grabresizeabort();
-	} else if (ev->xcookie.evtype == randroutputchange)
-		updatemonitors();
+	}
 }
 
 void
@@ -1278,8 +1272,8 @@ grabresize(const Arg *arg) {
 	/* detect if we should be dragging the tiled layout */
 	if (ctrlmode == DragSize && !sel->isfloating)
 		ctrlmode = DragTile;
-	/* capture input */
-	XGrabPointer(dpy, root, True, ButtonPressMask|ButtonReleaseMask,
+	/* grab pointer and show resize cursor */
+	XGrabPointer(dpy, root, True, ButtonPressMask,
 		GrabModeAsync, GrabModeAsync,None,cursize,CurrentTime);
 	if (ctrlmode != WinEdge)
 		/* bring the window to the top */
@@ -1502,13 +1496,14 @@ setup(void)
 	updatestatus();
 	/* select events */
 	XSelectInput(dpy, root, SubstructureRedirectMask|SubstructureNotifyMask
-		|ButtonPressMask|ButtonReleaseMask|StructureNotifyMask|PropertyChangeMask);
+		|ButtonPressMask|StructureNotifyMask|PropertyChangeMask);
 	/* prepare motion capture */
 	motion();
 	/* select xinput events */
 	if (XQueryExtension(dpy, "XInputExtension", &di, &di, &di)
 	&& XIQueryVersion(dpy, &(int){2}, &(int){0}) == Success) {
 		XISetMask(xi, XI_Motion);
+		XISetMask(xi, XI_ButtonRelease);
 		XISetMask(xi, XI_RawKeyRelease);
 		XISetMask(xi, XI_RawKeyPress);
 		evm.deviceid = XIAllDevices;
