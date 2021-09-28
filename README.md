@@ -246,7 +246,6 @@ void config(void) {
 
 # Future development goals
 
-* Pin launcher window location to launcher button.
 * Further code simplification and feature trimming.
 * Merge launcher button with help. Launcher should contain quick access help.
 * Update demo gif

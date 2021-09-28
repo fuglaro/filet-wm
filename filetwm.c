@@ -281,6 +281,8 @@ defaultconfig(void)
 	P(char*, launcher, { "dmenu_run", "-p", ">", "-m", "0", "-i", "-fn",
 		"monospace:size=8", "-nf", "#dddddd", "-sf", "#dddddd", "-nb", "#111111",
 		"-sb", "#335577", NULL });
+	P(char*, help, { "st", "-e", "bash", "-c",
+		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
 	P(char*, terminal, { "st", NULL });
 	#define VOLCMD(A) ("amixer -q set Master "#A"; xsetroot -name \"Volume: "\
 		"$(amixer sget Master | grep -m1 '%]' | "\
@@ -294,8 +296,6 @@ defaultconfig(void)
 		"$(xbacklight | cut -d. -f1)%\"")
 	P(char*, dimup, { "bash", "-c", DIMCMD("-inc"), NULL });
 	P(char*, dimdown, { "bash", "-c", DIMCMD("-dec"), NULL });
-	P(char*, help, { "st", "-e", "bash", "-c",
-		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
 
 	/* keyboard shortcut definitions */
 	#define AltMask Mod1Mask
@@ -426,7 +426,6 @@ getatomprop(Client *c, Atom prop)
  * Also, the border width of the window is updated depending
  * on the fullscreen state.
  */
-
 void
 resize(Client *c, int x, int y, int w, int h)
 {
@@ -489,6 +488,18 @@ resize(Client *c, int x, int y, int w, int h)
 	}
 }
 
+/**
+ * Reorders client window stack, front to back (respecting layers).
+ * Stack layer order is pinned, selected, floating, tiled, then fullscreen.
+ * Passing CliRefresh as the mode simply redraws
+ * the windows in their existing order. All other
+ * mode values changes the placement in the order
+ * stack of the given client:
+ *  - CliPin: pinned window to the very top above all layers (or unpin).
+ *  - CliRaise: temporarily show above all layers, but below pinned.
+ *  - CliZoom: bring the window to the top of stack.
+ *  - CliRemove: Remove window from stack entirely.
+ */
 void
 restack(Client *c, int mode)
 {
@@ -522,6 +533,7 @@ restack(Client *c, int mode)
 		attach(pinned);
 	}
 
+	/* show window that sit above the standard layers */
 	XDeleteProperty(dpy, root, xatom[NetCliStack]);
 	if (barfocus) up[i++] = barwin;
 	if (pinned) {
