@@ -664,7 +664,7 @@ void
 arrange(void)
 {
 	Client *c;
-	unsigned int m, h, mw;
+	int m, h, mw;
 	/* maximum of 32 monitors supported */
 	int nm[32] = {0}, i[32] = {0}, my[32] = {0}, ty[32] = {0};
 
@@ -777,13 +777,12 @@ focus(Client *c)
 void
 grabkeys(void)
 {
-	unsigned int i, j;
 	/* NumLock assumed to be Mod2Mask */
 	unsigned int mods[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	for (i = 0; i < keyslen; i++)
-		for (j = 0; j < (sizeof mods / sizeof mods[0]) && KCODE(keys[i].key); j++)
+	for (int i = 0; i < keyslen; i++)
+		for (int j = 0; j < (sizeof mods / sizeof mods[0]) && KCODE(keys[i].key); j++)
 			XGrabKey(dpy, KCODE(keys[i].key), keys[i].mod | mods[j], root,
 				True, GrabModeAsync, GrabModeAsync);
 }
@@ -1103,9 +1102,7 @@ expose(XEvent *e)
 void
 keypress(XEvent *e)
 {
-	unsigned int i;
-
-	for (i = 0; i < keyslen; i++)
+	for (int i = 0; i < keyslen; i++)
 		if (e->xkey.keycode == KCODE(keys[i].key)
 		&& KEYMASK(keys[i].mod) == KEYMASK(e->xkey.state))
 			keys[i].func(&(keys[i].arg));
@@ -1407,7 +1404,7 @@ zoom(const Arg *arg)
 void
 setup(void)
 {
-	int i, screen, xre;
+	int screen, xre;
 	unsigned char xi[XIMaskLen(XI_LASTEVENT)] = {0};
 	XIEventMask evm;
 	Atom utf8string;
@@ -1472,7 +1469,7 @@ setup(void)
 	cursize = XCreateFontCursor(dpy, XC_sizing);
 	XDefineCursor(dpy, root, curpoint);
 	/* init colors */
-	for (i = 0; i < colslen; i++)
+	for (int i = 0; i < colslen; i++)
 		if (!XftColorAllocName(dpy, DefaultVisual(dpy, screen),
 				DefaultColormap(dpy, screen), colors[i], &cols[i]))
 			DIE("error, cannot allocate colors.\n");

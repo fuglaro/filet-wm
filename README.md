@@ -246,8 +246,6 @@ void config(void) {
 
 # Future development goals
 
-* Declare loop variables in the loop
-* Don't use unsigned ints unless needed.
 * Pin launcher window location to launcher button.
 * Further code simplification and feature trimming.
 * Merge launcher button with help. Launcher should contain quick access help.
