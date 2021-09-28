@@ -560,6 +560,9 @@ restack(Client *c, int mode)
 			}
 }
 
+/**
+ * Send a message to a cliant via the XServer.
+ */
 int
 sendevent(Client *c, Atom proto)
 {
@@ -585,6 +588,10 @@ sendevent(Client *c, Atom proto)
 	return exists;
 }
 
+/**
+ * Signal handler that ensures zombie subprocesses
+ * are cleaned up immediately.
+ */
 void
 sigchld(int unused)
 {
@@ -596,6 +603,11 @@ sigchld(int unused)
 	while (0 < waitpid(-1, NULL, WNOHANG));
 }
 
+/**
+ * Retrieve size hint information for a client.
+ * Stores the sizing information for the client
+ * for future layout operations.
+ */
 void
 updatesizehints(Client *c)
 {
@@ -638,9 +650,13 @@ wintoclient(Window w)
 	return c;
 }
 
-/* There's no way to check accesses to destroyed windows, thus those cases are
- * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
- * default error handler, which may call exit. */
+/**
+ * Xlib error handler.
+ * There's no way to check accesses to destroyed
+ * windows, thus those cases are ignored (especially
+ * on UnmapNotify's). Other types of errors call Xlibs
+ * default error handler, which may call exit.
+ */
 int
 xerror(Display *dpy, XErrorEvent *ee)
 {
@@ -662,6 +678,9 @@ xerror(Display *dpy, XErrorEvent *ee)
 	return xerrorxlib(dpy, ee); /* may call exit */
 }
 
+/**
+ * Xlib error handler for ignoring all errors.
+ */
 int
 xerrordummy(Display *dpy, XErrorEvent *ee)
 {
