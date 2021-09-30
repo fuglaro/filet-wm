@@ -271,7 +271,7 @@ defaultconfig(void)
 	*/
 	A(Monitor, mons, {{0}});
 	/* position and width of the bar (x, y, w) */
-	V(int, barpos,, {9, 0, 480});
+	V(int, barpos,, {0, 0, 640});
 	/* factor of main area size [0.05..0.95] (for each monitor) */
 	P(float, mfact, {0.6});
 	/* number of clients in main area (for each monitor) */
