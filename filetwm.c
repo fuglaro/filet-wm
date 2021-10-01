@@ -229,7 +229,7 @@ static Window dwin;
 /* config assignment for pointer arrays with determinable length  */
 #define P(T, N, ...) V(T,N,,__VA_ARGS__;)
 /* config assignment for arrays (populating a xxxlen variable) */
-#define A(T, N, ...) V(T,N,N##len = (sizeof _##N/sizeof _##N[0]);,__VA_ARGS__;)
+#define A(T, N, ...) V(T,N,N##len = sizeof _##N/sizeof *_##N;,__VA_ARGS__;)
 
 /* configurable values (see defaultconfig) */
 Monitor *mons;
@@ -813,7 +813,7 @@ grabkeys(void)
 
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (int i = 0; i < keyslen; i++)
-		for (int j = 0; j < (sizeof mods / sizeof mods[0]) && KCODE(keys[i].key); j++)
+		for (int j = 0; j < sizeof mods/sizeof *mods && KCODE(keys[i].key); j++)
 			XGrabKey(dpy, KCODE(keys[i].key), keys[i].mod | mods[j], root,
 				True, GrabModeAsync, GrabModeAsync);
 }
@@ -1115,7 +1115,7 @@ exthandler(XEvent *ev)
 			restack(NULL, CliRefresh);
 		}
 		/* zoom after cycling windows if releasing the modifier key, this gives
-			 Alt+Tab+Tab... behavior like with common window managers */
+			 AltTab+Tab...select behavior like with common window managers */
 		else if (ctrlmode == ZoomStack && KCODE(stackrelease) == re->detail) {
 			restack(sel, CliZoom);
 			arrange(); /* zooming tiled windows can rearrange tiling */
@@ -1534,7 +1534,7 @@ setup(void)
 		XISetMask(xi, XI_ButtonRelease);
 		XISetMask(xi, XI_RawKeyRelease);
 		XISetMask(xi, XI_RawKeyPress);
-		evm.deviceid = XIAllDevices;
+		evm.deviceid = XIAllMasterDevices;
 		evm.mask_len = sizeof(xi);
 		evm.mask = xi;
 		XISelectEvents(dpy, root, &evm, 1);
