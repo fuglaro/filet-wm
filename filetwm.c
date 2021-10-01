@@ -165,12 +165,14 @@ static void configurerequest(XEvent *e);
 static void destroynotify(XEvent *e);
 static void expose(XEvent *e);
 static void exthandler(XEvent *ev);
-static void focus(Client *c);
+static void grabkeys(XEvent *e);
 static void keypress(XEvent *e);
-static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
 static void propertynotify(XEvent *e);
 static void unmapnotify(XEvent *e);
+
+/* general function declarations */
+static void focus(Client *c);
 
 /* variables */
 static char stxt[256] = { /* status text */
@@ -193,12 +195,11 @@ static void (*handler[LASTEvent]) (XEvent *) = { /* XEvent callbacks */
 	[Expose] = expose,
 	[GenericEvent] = exthandler,
 	[KeyPress] = keypress,
-	[MappingNotify] = mappingnotify,
+	[MappingNotify] = grabkeys,
 	[MapRequest] = maprequest,
 	[PropertyNotify] = propertynotify,
 	[UnmapNotify] = unmapnotify,
 };
-static int randroutputchange;     /* holds event-type: monitor change */
 static Atom xatom[XAtomLast];     /* holds X types */
 static int end;                   /* end session trigger (quit) */
 static Display *dpy;              /* X session display reference */
@@ -785,7 +786,7 @@ focus(Client *c)
 		for (c = clients; c && !ISVISIBLE(c); c = c->next);
 	if (sel && sel != c) {
 		/* catch the Click-to-Raise that could be coming */
-		XGrabButton(dpy, AnyButton, AnyModifier, sel->win, False,
+		XGrabButton(dpy, AnyButton, None, sel->win, False,
 			ButtonPressMask, GrabModeSync, GrabModeSync, None, None);
 		/* unfocus */
 		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
@@ -806,7 +807,7 @@ focus(Client *c)
 }
 
 void
-grabkeys(void)
+grabkeys(XEvent *e)
 {
 	/* NumLock assumed to be Mod2Mask */
 	unsigned int mods[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
@@ -845,6 +846,7 @@ motion()
 	int rx, ry, x, y;
 	static int lx = 0, ly = 0;
 	unsigned int mask;
+	char keystate[32];
 	Window cw;
 	static Window lastcw = {0};
 	static Client *c = NULL;
@@ -867,6 +869,22 @@ motion()
 		grabresizeabort();
 	if (ctrlmode != CtrlNone)
 		return;
+
+	/* raise the bar when trigger key is held down during mouse move */
+	XQueryKeymap(dpy, keystate);
+	if (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8))) {
+		if (!barfocus) {
+			barfocus = 1;
+			XRaiseWindow(dpy, barwin);
+			XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
+			XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
+		}
+	} else if (barfocus) {
+		barfocus = 0;
+		if (sel)
+			focus(sel);
+		restack(NULL, CliRefresh); // XXX replace with bar commands
+	}
 
 	c = cw != lastcw ? wintoclient(cw) : c;
 	lastcw = cw;
@@ -925,7 +943,7 @@ unmanage(Client *c, int destroyed)
 		XGrabServer(dpy); /* avoid race conditions */
 		XSetErrorHandler(xerrordummy);
 		XConfigureWindow(dpy, c->win, CWBorderWidth, &wc); /* restore border */
-		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
+		XUngrabButton(dpy, AnyButton, None, c->win);
 		XDeleteProperty(dpy, c->win, xatom[WMState]);
 		XSync(dpy, False);
 		XSetErrorHandler(xerror);
@@ -985,7 +1003,7 @@ buttonpress(XEvent *e)
 	Client *c;
 	Arg arg = {0};
 	XButtonPressedEvent *ev = &e->xbutton;
-
+	/* click actions for the bar */
 	if (ev->window == barwin) {
 		for (i = 0; i < tagslen && ev->x > (x += TEXTW(tags[i])); i++);
 		if (i < tagslen) {
@@ -996,13 +1014,13 @@ buttonpress(XEvent *e)
 			if (click == buttons[i].click && buttons[i].button == ev->button)
 				buttons[i].func(arg.ui ? &arg : &buttons[i].arg);
 	}
-
+	/* click on window border */
 	else if (sel && ctrlmode == WinEdge)
 		grabresize(&(Arg){.i = MOVEZONE(sel, ev->x, ev->y) ? DragMove : DragSize});
-
+	/* click-to-focus */
 	else if ((c = wintoclient(ev->window))) {
 		XAllowEvents(dpy, ReplayPointer, CurrentTime);
-		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
+		XUngrabButton(dpy, AnyButton, None, c->win);
 		focus(c);
 		restack(c, c->isfloating ? CliZoom : CliRaise);
 	}
@@ -1088,37 +1106,29 @@ destroynotify(XEvent *e)
 void
 exthandler(XEvent *ev)
 {
-	/* first check mouse movement events to keep them snappy */
-	if (ev->xcookie.evtype == XI_Motion) {
+
+	switch (ev->xcookie.evtype) {
+	case XI_RawMotion:
 		motion();
 		return;
-	} else if (ev->xcookie.evtype == randroutputchange)
+	case XI_RawButtonRelease:
+		grabresizeabort();
+		return;
+	default: /* must be an XRandR output change event */
 		updatemonitors();
-
-	grabresizeabort();
-	XGetEventData(dpy, &ev->xcookie);
-	XIRawEvent *re = ev->xcookie.data;
-
-	/* raise bar if trigger key is held down */
-	if (ev->xcookie.evtype == XI_RawKeyPress && KCODE(barshow) == re->detail) {
-		barfocus = 1;
-		XRaiseWindow(dpy, barwin);
-		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
-		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
-	}
-	else if (ev->xcookie.evtype == XI_RawKeyRelease) {
-		/* lower bar if trigger key is released */
-		if (KCODE(barshow) == re->detail) {
-			barfocus = 0;
-			if (sel)
-				focus(sel);
-			restack(NULL, CliRefresh);
-		}
+		return;
+	case XI_RawKeyRelease:
+		grabresizeabort();
 		/* zoom after cycling windows if releasing the modifier key, this gives
 			 AltTab+Tab...select behavior like with common window managers */
-		else if (ctrlmode == ZoomStack && KCODE(stackrelease) == re->detail) {
-			restack(sel, CliZoom);
-			arrange(); /* zooming tiled windows can rearrange tiling */
+		if (ctrlmode == ZoomStack) {
+			XGetEventData(dpy, &ev->xcookie);
+			XIRawEvent *re = ev->xcookie.data;
+			if (KCODE(stackrelease) == re->detail) {
+				ctrlmode = CtrlNone;
+				restack(sel, CliZoom);
+				arrange(); /* zooming tiled windows can rearrange tiling */
+			}
 		}
 	}
 }
@@ -1137,16 +1147,6 @@ keypress(XEvent *e)
 		if (e->xkey.keycode == KCODE(keys[i].key)
 		&& KEYMASK(keys[i].mod) == KEYMASK(e->xkey.state))
 			keys[i].func(&(keys[i].arg));
-}
-
-void
-mappingnotify(XEvent *e)
-{
-	XMappingEvent *ev = &e->xmapping;
-
-	XRefreshKeyboardMapping(ev);
-	if (ev->request == MappingKeyboard)
-		grabkeys();
 }
 
 void
@@ -1302,7 +1302,7 @@ grabresize(const Arg *arg) {
 		ctrlmode = DragTile;
 	/* grab pointer and show resize cursor */
 	XGrabPointer(dpy, root, True, ButtonPressMask,
-		GrabModeAsync, GrabModeAsync,None,cursize,CurrentTime);
+		GrabModeAsync, GrabModeAsync, None, cursize, CurrentTime);
 	if (ctrlmode != WinEdge)
 		/* bring the window to the top */
 		restack(sel, CliRaise);
@@ -1474,10 +1474,8 @@ setup(void)
 	if (MONNULL(mons[0])) {
 		updatemonitors();
 		/* select xrandr events (if monitor layout isn't hard configured) */
-		if (XRRQueryExtension(dpy, &xre, &di)) {
-			randroutputchange = xre + RRNotify_OutputChange;
+		if (XRRQueryExtension(dpy, &xre, &di))
 			XRRSelectInput(dpy, root, RROutputChangeNotifyMask);
-		}
 	}
 	/* init atoms */
 	utf8string = XInternAtom(dpy, "UTF8_STRING", False);
@@ -1530,16 +1528,15 @@ setup(void)
 	/* select xinput events */
 	if (XQueryExtension(dpy, "XInputExtension", &di, &di, &di)
 	&& XIQueryVersion(dpy, &(int){2}, &(int){0}) == Success) {
-		XISetMask(xi, XI_Motion);
-		XISetMask(xi, XI_ButtonRelease);
+		XISetMask(xi, XI_RawMotion);
+		XISetMask(xi, XI_RawButtonRelease);
 		XISetMask(xi, XI_RawKeyRelease);
-		XISetMask(xi, XI_RawKeyPress);
-		evm.deviceid = XIAllMasterDevices;
+		evm.deviceid = XIAllDevices;
 		evm.mask_len = sizeof(xi);
 		evm.mask = xi;
 		XISelectEvents(dpy, root, &evm, 1);
 	}
-	grabkeys();
+	grabkeys(NULL);
 	focus(NULL);
 }
 
