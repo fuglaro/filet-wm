@@ -840,12 +840,16 @@ focus(Client *c)
 	}
 }
 
+/**
+ *
+ */
 void
 grabkeys(XEvent *e)
 {
 	/* NumLock assumed to be Mod2Mask */
 	unsigned int mods[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
+	/* Register capture of all configured keyboard shortcuts. */
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (int i = 0; i < keyslen; i++)
 		for (int j = 0; j < sizeof mods/sizeof *mods && KCODE(keys[i].key); j++)
@@ -1059,15 +1063,12 @@ clientmessage(XEvent *e)
 	XClientMessageEvent *cme = &e->xclient;
 	Client *c = wintoclient(cme->window);
 
-	if (!c)
-		return;
-	if (cme->message_type == xatom[NetWMState]) {
-		if (cme->data.l[1] == xatom[NetWMFullscreen]
-		|| cme->data.l[2] == xatom[NetWMFullscreen])
-			/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
-			setfullscreen(c, (cme->data.l[0] == 1
-				|| (cme->data.l[0] == 2 && !c->isfullscreen)));
-	}
+	if (c && cme->message_type == xatom[NetWMState]
+	&& (cme->data.l[1] == xatom[NetWMFullscreen]
+		|| cme->data.l[2] == xatom[NetWMFullscreen]))
+		/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
+		setfullscreen(c, (cme->data.l[0] == 1
+			|| (cme->data.l[0] == 2 && !c->isfullscreen)));
 }
 
 void
