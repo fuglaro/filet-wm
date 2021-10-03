@@ -118,7 +118,7 @@ cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 #include <X11/keysym.h>
 #include <X11/XF86keysym.h>
 #include <X11/Xlib.h>
-#define LEN(X) (sizeof X / sizeof X[0])
+#define LEN(X) (sizeof X / sizeof *X)
 /* varible overide */
 #define S(T, N, V) extern T N; N = V;
 #define V(T, N, L, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N L]]
@@ -246,7 +246,7 @@ void config(void) {
 
 # Future development goals
 
-* Further code simplification and feature trimming.
+* All functions to have comments and docstrings.
 * Merge launcher button with help. Launcher should contain quick access help.
 * Update demo gif
 

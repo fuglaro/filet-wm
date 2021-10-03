@@ -97,7 +97,7 @@ enum { ClkStatus, ClkTagBar, ClkLast };
 /* mouse motion modes */
 enum { DragMove, DragSize, DragTile, WinEdge, ZoomStack, CtrlNone };
 /* window stack actions */
-enum { CliPin, CliRaise, CliZoom, CliRemove, CliRefresh };
+enum { CliPin, CliRaise, CliZoom, CliRemove, CliBarShow, CliBarHide };
 
 /* argument template for keyboard shortcut and bar click actions */
 typedef union {
@@ -492,14 +492,14 @@ resize(Client *c, int x, int y, int w, int h)
 /**
  * Reorders client window stack, front to back (respecting layers).
  * Stack layer order is pinned, selected, floating, tiled, then fullscreen.
- * Passing CliRefresh as the mode simply redraws
- * the windows in their existing order. All other
- * mode values changes the placement in the order
+ * Mode values changes the placement in the order
  * stack of the given client:
  *  - CliPin: pinned window to the very top above all layers (or unpin).
  *  - CliRaise: temporarily show above all layers, but below pinned.
  *  - CliZoom: bring the window to the top of stack.
  *  - CliRemove: Remove window from stack entirely.
+ *  - CliBarShow: Raise bar (c ignored).
+ *  - CliBarHide: Drop bar to its normal stack order (c ignored).
  */
 void
 restack(Client *c, int mode)
@@ -518,6 +518,13 @@ restack(Client *c, int mode)
 		detach(c);
 		pinned = pinned != c ? pinned : NULL;
 		raised = raised != c ? raised : NULL;
+		break;
+	case CliBarShow:
+	case CliBarHide:
+		if (barfocus == (mode == CliBarShow))
+			return;
+		barfocus = mode == CliBarShow;
+		focus(sel);
 		break;
 	case CliZoom:
 		if (c) {
@@ -791,13 +798,12 @@ focus(Client *c)
 		/* unfocus */
 		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
 	}
-	if (c) {
+	if (c)
 		XSetWindowBorder(dpy, c->win, cols[selbdr].pixel);
-		if (!barfocus) {
-			XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-			PROPSET(root, NetActiveWindow, XA_WINDOW, 32, &c->win, 1);
-			sendevent(c, xatom[WMTakeFocus]);
-		}
+	if (c && !barfocus) {
+		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
+		PROPSET(root, NetActiveWindow, XA_WINDOW, 32, &c->win, 1);
+		sendevent(c, xatom[WMTakeFocus]);
 	} else {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
@@ -872,20 +878,10 @@ motion()
 
 	/* raise the bar when trigger key is held down during mouse move */
 	XQueryKeymap(dpy, keystate);
-	if (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8))) {
-		if (!barfocus) {
-			barfocus = 1;
-			XRaiseWindow(dpy, barwin);
-			XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
-			XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
-		}
-	} else if (barfocus) {
-		barfocus = 0;
-		if (sel)
-			focus(sel);
-		restack(NULL, CliRefresh); // XXX replace with bar commands
-	}
+	restack(NULL, (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8)))
+		? CliBarShow : CliBarHide);
 
+	/* get the client window under mouse (cached for speed) */
 	c = cw != lastcw ? wintoclient(cw) : c;
 	lastcw = cw;
 	/* focus follows mouse */
