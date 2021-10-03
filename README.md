@@ -202,7 +202,7 @@ void config(void) {
     S(KeySym, stackrelease, XK_Alt_L);
     A(Key, keys, {
     /*               modifier / key, function / argument */
-    {           ControlMask, XK_Tab, spawn, {.v = &launcher } },
+    {               WinMask, XK_Tab, spawn, {.v = &launcher } },
     {     WinMask|ShiftMask, XK_Tab, spawn, {.v = &terminal } },
     {             WinMask, XK_space, grabresize, {.i = DragMove } },
     {     WinMask|AltMask, XK_space, grabresize, {.i = DragSize } },
@@ -235,8 +235,8 @@ void config(void) {
   /* bar actions */
   A(Button, buttons, {
     /* click,      button, function / argument */
-    { ClkStatus,   Button1, spawn, {.v = &help } },
-    { ClkStatus,   Button2, spawn, {.v = &help } },
+    { ClkStatus,   Button1, spawn, {.v = &launcher } },
+    { ClkStatus,   Button2, spawn, {.v = &terminal } },
     { ClkStatus,   Button3, spawn, {.v = &help } },
     { ClkTagBar,   Button1, view, {0} },
     { ClkTagBar,   Button3, tag, {0} },
@@ -247,7 +247,7 @@ void config(void) {
 # Future development goals
 
 * All functions to have comments and docstrings.
-* Merge launcher button with help. Launcher should contain quick access help.
+* All shortcuts centered around Win key. (make example config traditional)
 * Update demo gif
 
 # Thanks to, grateful forks, and contributions

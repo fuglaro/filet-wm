@@ -93,7 +93,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck, /* EWMH atoms */
        /* default atoms */
        WMProtocols, WMDelete, WMState, WMTakeFocus, XAtomLast };
 /* bar click regions */
-enum { ClkStatus, ClkTagBar, ClkLast };
+enum { ClkStatus, ClkTagBar, ClkSelTag, ClkLast };
 /* mouse motion modes */
 enum { DragMove, DragSize, DragTile, WinEdge, ZoomStack, CtrlNone };
 /* window stack actions */
@@ -282,9 +282,9 @@ defaultconfig(void)
 	P(char*, launcher, { "dmenu_run", "-p", ">", "-m", "0", "-i", "-fn",
 		"monospace:size=8", "-nf", "#dddddd", "-sf", "#dddddd", "-nb", "#111111",
 		"-sb", "#335577", NULL });
+	P(char*, terminal, { "st", NULL });
 	P(char*, help, { "st", "-e", "bash", "-c",
 		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
-	P(char*, terminal, { "st", NULL });
 	#define VOLCMD(A) ("amixer -q set Master "#A"; xsetroot -name \"Volume: "\
 		"$(amixer sget Master | grep -m1 '%]' | "\
 		"sed -e 's/[^\\[]*\\[\\([0-9]*%\\)[^\\[]*\\[\\([onf]*\\).*/\\1 \\2/')\"")
@@ -342,6 +342,7 @@ defaultconfig(void)
 	/* bar actions */
 	A(Button, buttons, {
 		/* click,      button, function / argument */
+		{ ClkSelTag,   Button1, spawn, {.v = &launcher } },
 		{ ClkStatus,   Button1, spawn, {.v = &help } },
 		{ ClkTagBar,   Button1, view, {0} },
 		{ ClkTagBar,   Button3, tag, {0} },
@@ -995,17 +996,20 @@ updatestatus(void)
 void
 buttonpress(XEvent *e)
 {
-	int i, x = 0, click = ClkStatus;
+	unsigned int i;
+	int x = 0, click;
 	Client *c;
 	Arg arg = {0};
 	XButtonPressedEvent *ev = &e->xbutton;
 	/* click actions for the bar */
 	if (ev->window == barwin) {
+		/* check for click on one of the tags (workspaces)  */
 		for (i = 0; i < tagslen && ev->x > (x += TEXTW(tags[i])); i++);
-		if (i < tagslen) {
-			click = ClkTagBar;
+		click = tagset & 1 << i ? ClkSelTag : i < tagslen ? ClkTagBar : ClkStatus;
+		/* if unselected tag clicked, auto set argument to tag number */
+		if (click == ClkTagBar)
 			arg.ui = 1 << i;
-		}
+		/* run the appropriate click action function */
 		for (i = 0; i < buttonslen; i++)
 			if (click == buttons[i].click && buttons[i].button == ev->button)
 				buttons[i].func(arg.ui ? &arg : &buttons[i].arg);
