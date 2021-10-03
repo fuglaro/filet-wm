@@ -1372,15 +1372,12 @@ quit(const Arg *arg)
 void
 spawn(const Arg *arg)
 {
-	if (fork() == 0) {
-		if (dpy)
-			close(ConnectionNumber(dpy));
-		setsid();
-		execvp((*(char***)arg->v)[0], *(char ***)arg->v);
-		fprintf(stderr, "filetwm: execvp %s", (*(char ***)arg->v)[0]);
-		perror(" failed");
-		exit(EXIT_SUCCESS);
-	}
+	if (fork() != 0)
+		return;
+	close(ConnectionNumber(dpy));
+	setsid();
+	execvp((*(char***)arg->v)[0], *(char ***)arg->v);
+	exit(EXIT_FAILURE);
 }
 
 void
