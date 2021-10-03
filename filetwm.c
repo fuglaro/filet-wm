@@ -58,7 +58,7 @@
 	S, PropMode##P,  (unsigned char *) V, E);}
 #define PROPSET(W, A, T, S, V, E) PROPADD(Replace, W, A, T, S, V, E)
 #define TEXTPAD (xfont->ascent + xfont->descent) /* side padding of text */
-#define TEXTW(X) (drawgettextwidth(X) + TEXTPAD)
+#define TEXTW(X) (drawntextwidth(X) + TEXTPAD)
 
 /* edge dragging and region macros*/
 #define INZONE(C, X, Y) (X >= C->x - C->bw && Y >= C->y - C->bw\
@@ -700,6 +700,14 @@ xerrordummy(Display *dpy, XErrorEvent *ee)
 * General functions
 ************************/
 
+/**
+ * Rearranges all windows to display the ones
+ * visible in the current workspace (tag) selection
+ * and tile all windows in the tiling layer.
+ * The selected window is brought to the top since
+ * it may have changed with a workspace (tag)
+ * selection change.
+ */
 void
 arrange(void)
 {
@@ -744,12 +752,13 @@ arrange(void)
 			i[m]++;
 		}
 
-	/* Lift the selected window to the top */
+	/* Lift the selected window to the top since the focus
+	   call above may have changed the selected window. */
 	restack(sel, CliRaise);
 }
 
 int
-drawgettextwidth(const char *text)
+drawntextwidth(const char *text)
 {
 	XGlyphInfo ext;
 	XftTextExtentsUtf8(dpy, xfont, (XftChar8*)text, strlen(text), &ext);
@@ -757,14 +766,13 @@ drawgettextwidth(const char *text)
 }
 
 void
-drawtext(int x, int y, int w, int h, const char *text, const XftColor *fg,
-	const XftColor *bg)
+drawbartext(int x, int w, const char *text, const XftColor *bg)
 {
-	int ty = y + (h - (xfont->ascent + xfont->descent)) / 2 + xfont->ascent;
+	int ty = (BARH - (xfont->ascent + xfont->descent)) / 2 + xfont->ascent;
 
 	XSetForeground(dpy, gc, bg->pixel);
-	XFillRectangle(dpy, drawable, gc, x, y, w, h);
-	XftDrawStringUtf8(drawablexft, fg, xfont, x + (TEXTPAD / 2), ty,
+	XFillRectangle(dpy, drawable, gc, x, 0, w, BARH);
+	XftDrawStringUtf8(drawablexft, &cols[fg], xfont, x + (TEXTPAD / 2), ty,
 		(XftChar8 *)text, strlen(text));
 }
 
@@ -775,13 +783,12 @@ drawbar()
 
 	/* draw tags */
 	for (i = 0; i < tagslen; i++) {
-		drawtext(x, 0, TEXTW(tags[i]), BARH, tags[i], &cols[fg],
-			&cols[tagset & 1 << i ? mark : bg]);
+		drawbartext(x, TEXTW(tags[i]), tags[i], &cols[tagset & 1 << i ? mark : bg]);
 		x += TEXTW(tags[i]);
 	}
 
 	/* draw status */
-	drawtext(x, 0, mons->mw, BARH, stxt, &cols[fg], &cols[bg]);
+	drawbartext(x, barpos[2], stxt, &cols[bg]);
 
 	/* display composited bar */
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, barpos[2], BARH, 0, 0);
