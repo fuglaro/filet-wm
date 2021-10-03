@@ -841,7 +841,9 @@ focus(Client *c)
 }
 
 /**
- *
+ * Register all the keyboard shortcuts with the x server
+ * so, as long as nothing else grabs the whole keyboard,
+ * we will get keypress events when they are triggered.
  */
 void
 grabkeys(XEvent *e)
@@ -857,6 +859,12 @@ grabkeys(XEvent *e)
 				True, GrabModeAsync, GrabModeAsync);
 }
 
+/**
+ * This ends the process started by grabresize.
+ * This is optimised to return quickly if not currently
+ * within a grabresize state.
+ * See grabresize.
+ */
 void
 grabresizeabort()
 {
@@ -878,6 +886,13 @@ grabresizeabort()
 	ctrlmode = CtrlNone;
 }
 
+/**
+ * This is called for any mouse movement event and handles
+ * resizing during grabresize states (see grabresize),
+ * raise and lowering the bar for the trigger-key
+ * state (see barshow), watching for window-edge behaviour,
+ * and managing focus-follows-mouse behaviour.
+ */
 void
 motion()
 {
@@ -924,6 +939,14 @@ motion()
 		grabresize(&(Arg){.i = WinEdge});
 }
 
+/**
+ * Set the fullscreen state and, if needed, carefully
+ * switching back to the previous floating/tiling state.
+ * Fullscreen windows will span the monitors that the
+ * original window position spanned.
+ * @c: the client to change the fullscreen state
+ * @fullcreen: the state to change to (1:fullscreen, 0:not)
+ */
 void
 setfullscreen(Client *c, int fullscreen)
 {
@@ -960,13 +983,19 @@ setfullscreen(Client *c, int fullscreen)
 	arrange();
 }
 
+/**
+ * Stop managing the given client as a client window
+ * of this window manager. Update the selected window
+ * if needed.
+ * @c: the client to unmanage.
+ */
 void
 unmanage(Client *c, int destroyed)
 {
 	XWindowChanges wc;
 
 	restack(c, CliRemove);
-	if (!destroyed) {
+	if (!destroyed) {// XXX do we need any of this?
 		wc.border_width = c->oldbw;
 		XGrabServer(dpy); /* avoid race conditions */
 		XSetErrorHandler(xerrordummy);
@@ -1287,6 +1316,11 @@ unmapnotify(XEvent *e)
 * Config callable funcs
 ************************/
 
+/**
+ * Select the next or previous window in the stack.
+ * @arg: contains i parameter identifying the direction
+ *       to cycle (positive -> next, negative -> previous)
+ */
 void
 focusstack(const Arg *arg)
 {
@@ -1313,6 +1347,18 @@ focusstack(const Arg *arg)
 	}
 }
 
+/**
+ * Start resizing the currently selected window with
+ * a given resize mode. Further mouse movements will
+ * apply sizing changes until keys are released or
+ * mouse button states change.
+ * @arg: contains i parameter identifying the resize mode:
+ *       - DragMove: move the window x and y position.
+ *       - DragSize: resize the window w and h sizes.
+ *       - DragTile: resize the window w and h sizes and then
+ *                   change the tiling layout to best fit the
+ *                   window as the first window in the stack.
+ */
 void
 grabresize(const Arg *arg) {
 	/* abort if already in the desired mode */
@@ -1336,6 +1382,14 @@ grabresize(const Arg *arg) {
 		restack(sel, CliRaise);
 }
 
+/**
+ * Start cycling the selection through the windows in such
+ * a way that when the stackrelease key is released,
+ * the resulting selected window is raised to the top
+ * of the stack.
+ * @arg: contains i parameter identifying the direction
+ *       to cycle (positive -> next, negative -> previous)
+ */
 void
 grabstack(const Arg *arg)
 {
@@ -1343,6 +1397,9 @@ grabstack(const Arg *arg)
 	focusstack(arg);
 }
 
+/**
+ * Terminate the currently selected window.
+ */
 void
 killclient(const Arg *arg)
 {
@@ -1357,18 +1414,33 @@ killclient(const Arg *arg)
 	}
 }
 
+/**
+ * Switch pinned state for the selected window.
+ * The pinned state displays the window above
+ * all other windows including selected windows.
+ */
 void
 pin(const Arg *arg)
 {
 	restack(sel, CliPin);
 }
 
+/**
+ * Shutdown the whole window manager including all
+ * client windows.
+ */
 void
 quit(const Arg *arg)
 {
 	end = 1;
 }
 
+
+/**
+ * Launch a child process.
+ * @arg: contains char array v parameter with the
+ *       the command and arguments to launch.
+ */
 void
 spawn(const Arg *arg)
 {
@@ -1380,6 +1452,11 @@ spawn(const Arg *arg)
 	exit(EXIT_FAILURE);
 }
 
+/**
+ * Move the currently selected window to a different workspace.
+ * @arg: contains ui parameter identifying the workspace
+ *       number to move to.
+ */
 void
 tag(const Arg *arg)
 {
@@ -1389,18 +1466,22 @@ tag(const Arg *arg)
 	}
 }
 
+/**
+ * Switch floating/tiled states for the selected window.
+ */
 void
 togglefloating(const Arg *arg)
 {
-	if (!sel)
-		return;
-	if (sel->isfullscreen)
+	if (sel && sel->isfullscreen)
 		setfullscreen(sel, 0);
-	if ((sel->isfloating = !sel->isfloating))
+	if (sel && (sel->isfloating = !sel->isfloating))
 		resize(sel, sel->fx, sel->fy, sel->fw, sel->fh);
 	arrange();
 }
 
+/**
+ * Switch fullcreen state for the selected window.
+ */
 void
 togglefullscreen(const Arg *arg)
 {
@@ -1423,6 +1504,11 @@ toggletag(const Arg *arg)
 	}
 }
 
+/**
+ * Move to a different workspace.
+ * @arg: contains ui parameter identifying the workspace
+ *       number to move to.
+ */
 void
 view(const Arg *arg)
 {
@@ -1431,6 +1517,11 @@ view(const Arg *arg)
 	arrange();
 }
 
+/**
+ * Move to the next or previous workspace.
+ * @arg: contains i parameter for the workspace
+ *       number to increase by (negative decreases)
+ */
 void
 viewshift(const Arg *arg)
 {
@@ -1439,13 +1530,23 @@ viewshift(const Arg *arg)
 	arrange();
 }
 
+/**
+ * Move with the selected window
+ * to the next or previous workspace.
+ * @arg: contains i parameter for the workspace
+ *       number to increase by (negative decreases)
+ */
 void
 viewtagshift(const Arg *arg)
 {
-	if (sel) sel->tags = TAGSHIFT(sel->tags, arg->i);
+	if (sel)
+		sel->tags = TAGSHIFT(sel->tags, arg->i);
 	viewshift(arg);
 }
 
+/**
+ * Bring the selected window to the top of the stack.
+ */
 void
 zoom(const Arg *arg)
 {
@@ -1457,6 +1558,10 @@ zoom(const Arg *arg)
 * Core execution code
 ************************/
 
+/**
+ * Initialise the whole window manager and all settings
+ * ready for the event loop.
+ */
 void
 setup(void)
 {
