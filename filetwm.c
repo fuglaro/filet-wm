@@ -542,7 +542,7 @@ restack(Client *c, int mode)
 		attach(pinned);
 	}
 
-	/* show window that sit above the standard layers */
+	/* show windows that sit above the standard layers */
 	XDeleteProperty(dpy, root, xatom[NetCliStack]);
 	if (barfocus) up[i++] = barwin;
 	if (pinned) {
@@ -757,6 +757,9 @@ arrange(void)
 	restack(sel, CliRaise);
 }
 
+/**
+ * Finds the width of the given text, when drawn.
+ */
 int
 drawntextwidth(const char *text)
 {
@@ -765,6 +768,10 @@ drawntextwidth(const char *text)
 	return ext.xOff;
 }
 
+/**
+ * Render the given text onto the bar's drawable with
+ * a given position and background color.
+ */
 void
 drawbartext(int x, int w, const char *text, const XftColor *bg)
 {
@@ -776,6 +783,9 @@ drawbartext(int x, int w, const char *text, const XftColor *bg)
 		(XftChar8 *)text, strlen(text));
 }
 
+/**
+ * Re-render the bar, updating the status text and workspaces (tags).
+ */
 void
 drawbar()
 {
@@ -786,7 +796,6 @@ drawbar()
 		drawbartext(x, TEXTW(tags[i]), tags[i], &cols[tagset & 1 << i ? mark : bg]);
 		x += TEXTW(tags[i]);
 	}
-
 	/* draw status */
 	drawbartext(x, barpos[2], stxt, &cols[bg]);
 
@@ -794,9 +803,20 @@ drawbar()
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, barpos[2], BARH, 0, 0);
 }
 
+/**
+ * Focus on the given client window, if provided,
+ * and if it is visible (on the current workspace),
+ * otherwise fallback to selecting the previous
+ * selection, if visible, or the highest visible
+ * client window in the stack.
+ */
 void
 focus(Client *c)
 {
+	/* if c is not set or not visible, update c to be
+	   the currently selected window, if it is visible,
+	   otherwise search for the next visible window in
+	   the stack. */
 	if ((!c || !ISVISIBLE(c)) && (!(c = sel) || !ISVISIBLE(sel)))
 		for (c = clients; c && !ISVISIBLE(c); c = c->next);
 	if (sel && sel != c) {
@@ -806,6 +826,8 @@ focus(Client *c)
 		/* unfocus */
 		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
 	}
+	sel = c;
+	/* focus on the new selected window */
 	if (c)
 		XSetWindowBorder(dpy, c->win, cols[selbdr].pixel);
 	if (c && !barfocus) {
@@ -816,8 +838,6 @@ focus(Client *c)
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	}
-	sel = c;
-	drawbar();
 }
 
 void
