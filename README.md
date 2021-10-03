@@ -247,7 +247,6 @@ void config(void) {
 # Future development goals
 
 * All functions to have comments and docstrings.
-* All shortcuts centered around Win key. (make example config traditional)
 * Update demo gif
 
 # Thanks to, grateful forks, and contributions

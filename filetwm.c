@@ -303,9 +303,9 @@ defaultconfig(void)
 	#define WinMask Mod4Mask
 	#define TK(KEY) { WinMask, XK_##KEY, view, {.ui = 1 << (KEY - 1)} }, \
 	{       WinMask|ShiftMask, XK_##KEY, tag, {.ui = 1 << (KEY - 1)} }, \
-	{                 AltMask, XK_##KEY, toggletag, {.ui = 1 << (KEY - 1)} },
-	/* Alt+Tab style behaviour key release */
-	S(KeySym, stackrelease, XK_Alt_L);
+	{         WinMask|AltMask, XK_##KEY, toggletag, {.ui = 1 << (KEY - 1)} },
+	/* Alt+Tab style window switch and lift behaviour key release */
+	S(KeySym, stackrelease, XK_Super_L);
 	/* Key to raise the bar for visibility when held down */
 	S(KeySym, barshow, XK_Super_L);
 	A(Key, keys, {
@@ -315,21 +315,21 @@ defaultconfig(void)
 		{             WinMask, XK_space, grabresize, {.i = DragMove } },
 		{     WinMask|AltMask, XK_space, grabresize, {.i = DragSize } },
 		{ WinMask|ControlMask, XK_space, togglefloating, {0} },
-		{            AltMask, XK_Return, togglefullscreen, {0} },
-		{            WinMask, XK_Return, pin, {0} },
-		{    WinMask|AltMask, XK_Return, zoom, {0} },
-		{               AltMask, XK_Tab, grabstack, {.i = +1 } },
-		{     AltMask|ShiftMask, XK_Tab, grabstack, {.i = -1 } },
+		{            WinMask, XK_Return, togglefullscreen, {0} },
+		{    WinMask|AltMask, XK_Return, pin, {0} },
+		{  WinMask|ShiftMask, XK_Return, zoom, {0} },
 		{                WinMask, XK_Up, focusstack, {.i = -1 } },
 		{              WinMask, XK_Down, focusstack, {.i = +1 } },
+		{      WinMask|ShiftMask, XK_Up, grabstack, {.i = +1 } },
+		{    WinMask|ShiftMask, XK_Down, grabstack, {.i = -1 } },
 		{              WinMask, XK_Left, viewshift, {.i = -1 } },
 		{             WinMask, XK_Right, viewshift, {.i = +1 } },
 		{    WinMask|ShiftMask, XK_Left, viewtagshift, {.i = -1 } },
 		{   WinMask|ShiftMask, XK_Right, viewtagshift, {.i = +1 } },
-		{                 AltMask, XK_0, tag, {.ui = ~0 } },
-		{                AltMask, XK_F4, killclient, {0} },
-		{                WinMask, XK_F4, spawn, {.v = &suspend } },
-		{ AltMask|ControlMask|ShiftMask, XK_F4, quit, {0} },
+		{         WinMask|AltMask, XK_0, tag, {.ui = ~0 } },
+		{                WinMask, XK_F4, killclient, {0} },
+		{      WinMask|ShiftMask, XK_F4, spawn, {.v = &suspend } },
+		{ WinMask|ControlMask|ShiftMask, XK_F4, quit, {0} },
 		{    0, XF86XK_AudioLowerVolume, spawn, {.v = &downvol } },
 		{           0, XF86XK_AudioMute, spawn, {.v = &mutevol } },
 		{    0, XF86XK_AudioRaiseVolume, spawn, {.v = &upvol } },
