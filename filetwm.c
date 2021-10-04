@@ -519,6 +519,7 @@ restack(Client *c, int mode)
 		detach(c);
 		pinned = pinned != c ? pinned : NULL;
 		raised = raised != c ? raised : NULL;
+		focus(sel != c ? sel : NULL);
 		break;
 	case CliBarShow:
 	case CliBarHide:
@@ -821,7 +822,7 @@ focus(Client *c)
 		for (c = clients; c && !ISVISIBLE(c); c = c->next);
 	if (sel && sel != c) {
 		/* catch the Click-to-Raise that could be coming */
-		XGrabButton(dpy, AnyButton, None, sel->win, False,
+		XGrabButton(dpy, AnyButton, AnyModifier, sel->win, False,
 			ButtonPressMask, GrabModeSync, GrabModeSync, None, None);
 		/* unfocus */
 		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
@@ -995,23 +996,22 @@ unmanage(Client *c, int destroyed)
 	XWindowChanges wc;
 
 	restack(c, CliRemove);
+	arrange();
 	if (!destroyed) {// XXX do we need any of this?
 		wc.border_width = c->oldbw;
 		XGrabServer(dpy); /* avoid race conditions */
 		XSetErrorHandler(xerrordummy);
 		XConfigureWindow(dpy, c->win, CWBorderWidth, &wc); /* restore border */
-		XUngrabButton(dpy, AnyButton, None, c->win);
+		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
 		XDeleteProperty(dpy, c->win, xatom[WMState]);
 		XSync(dpy, False);
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
-	sel = sel != c ? sel : NULL;
 	free(c);
 	XDeleteProperty(dpy, root, xatom[NetClientList]);
 	for (c = clients; c; c = c->next)
 		PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
-	arrange();
 }
 
 void
@@ -1080,7 +1080,7 @@ buttonpress(XEvent *e)
 	/* click-to-focus */
 	else if ((c = wintoclient(ev->window))) {
 		XAllowEvents(dpy, ReplayPointer, CurrentTime);
-		XUngrabButton(dpy, AnyButton, None, c->win);
+		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
 		focus(c);
 		restack(c, c->isfloating ? CliZoom : CliRaise);
 	}
