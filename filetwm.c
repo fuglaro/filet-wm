@@ -519,7 +519,7 @@ restack(Client *c, int mode)
 		detach(c);
 		pinned = pinned != c ? pinned : NULL;
 		raised = raised != c ? raised : NULL;
-		focus(sel != c ? sel : NULL);
+		sel = sel != c ? sel : NULL;
 		break;
 	case CliBarShow:
 	case CliBarHide:
