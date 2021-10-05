@@ -120,10 +120,9 @@ struct Client {
 	float mina, maxa;
 	int x, y, w, h;
 	int fx, fy, fw, fh; /*remember during tiled and fullscreen states */
-	int basew, baseh, maxw, maxh, minw, minh;
-	int bw, fbw, oldbw;
-	unsigned int tags;
+	int basew, baseh, maxw, maxh, minw, minh, bw, fbw;
 	int isfloating, fstate, isfullscreen;
+	unsigned int tags;
 	Client *next;
 	Window win;
 };
@@ -574,7 +573,7 @@ restack(Client *c, int mode)
  * Send a message to a cliant via the XServer.
  */
 int
-sendevent(Client *c, Atom proto)
+sendevent(const Client *c, Atom proto)
 {
 	int n;
 	Atom *protocols;
@@ -989,25 +988,20 @@ setfullscreen(Client *c, int fullscreen)
  * of this window manager. Update the selected window
  * if needed.
  * @c: the client to unmanage.
+ * Note that in some situations, client windows could
+ * persist after being unmapped, and be left with
+ * a border and a button grab. Subsequent button grabs
+ * will not end up doing anything because the client
+ * won't be on the stack and we don't care about the
+ * border. Its not really supported to persist a
+ * client window launched from this window manager
+ * after unmapping.
  */
 void
-unmanage(Client *c, int destroyed)
+unmanage(Client *c)
 {
-	XWindowChanges wc;
-
 	restack(c, CliRemove);
 	arrange();
-	if (!destroyed) {// XXX do we need any of this?
-		wc.border_width = c->oldbw;
-		XGrabServer(dpy); /* avoid race conditions */
-		XSetErrorHandler(xerrordummy);
-		XConfigureWindow(dpy, c->win, CWBorderWidth, &wc); /* restore border */
-		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
-		XDeleteProperty(dpy, c->win, xatom[WMState]);
-		XSync(dpy, False);
-		XSetErrorHandler(xerror);
-		XUngrabServer(dpy);
-	}
 	free(c);
 	XDeleteProperty(dpy, root, xatom[NetClientList]);
 	for (c = clients; c; c = c->next)
@@ -1144,10 +1138,9 @@ void
 destroynotify(XEvent *e)
 {
 	Client *c;
-	XDestroyWindowEvent *ev = &e->xdestroywindow;
 
-	if ((c = wintoclient(ev->window)))
-		unmanage(c, 1);
+	if ((c = wintoclient(e->xdestroywindow.window)))
+		unmanage(c);
 }
 
 /*
@@ -1235,7 +1228,6 @@ maprequest(XEvent *e)
 	c->fy = wa.y;
 	c->fw = wa.width;
 	c->fh = wa.height;
-	c->oldbw = wa.border_width;
 	/* show window on same workspaces as its parent, if it has one */
 	if (XGetTransientForHint(dpy, ev->window, &trans) && (t = wintoclient(trans)))
 		c->tags = t->tags;
@@ -1302,14 +1294,9 @@ void
 unmapnotify(XEvent *e)
 {
 	Client *c;
-	XUnmapEvent *ev = &e->xunmap;
 
-	if ((c = wintoclient(ev->window))) {
-		if (ev->send_event)
-			XDeleteProperty(dpy, c->win, xatom[WMState]);
-		else
-			unmanage(c, 0);
-	}
+	if ((c = wintoclient(e->xunmap.window)) && !e->xunmap.send_event)
+		unmanage(c);
 }
 
 /***********************
@@ -1403,11 +1390,12 @@ grabstack(const Arg *arg)
 void
 killclient(const Arg *arg)
 {
-	if (sel && !sendevent(sel, xatom[WMDelete])) {
+	const Client *c = arg->v ? arg->v : sel;
+	if (c && !sendevent(c, xatom[WMDelete])) {
 		XGrabServer(dpy);
 		XSetErrorHandler(xerrordummy);
 		XSetCloseDownMode(dpy, DestroyAll);
-		XKillClient(dpy, sel->win);
+		XKillClient(dpy, c->win);
 		XSync(dpy, False);
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
@@ -1692,8 +1680,10 @@ main(int argc, char *argv[])
 
 	/* cleanup */
 	view(&(Arg){.ui = ~0});
-	while (clients)
-		unmanage(clients, 0);
+	while (clients) {
+		killclient(&(Arg){.v = clients});
+		unmanage(clients);
+	}
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	XUnmapWindow(dpy, barwin);
 	XDestroyWindow(dpy, barwin);
@@ -1704,7 +1694,7 @@ main(int argc, char *argv[])
 	XFreePixmap(dpy, drawable);
 	XFreeGC(dpy, gc);
 	XftDrawDestroy(drawablexft);
-	XSync(dpy, False);
+	XSync(dpy, True);
 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 	XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	XCloseDisplay(dpy);
