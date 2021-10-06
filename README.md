@@ -246,7 +246,6 @@ void config(void) {
 
 # Future development goals
 
-* All functions to have comments and docstrings.
 * Update demo gif
 
 # Thanks to, grateful forks, and contributions
