@@ -366,7 +366,8 @@ attach(Client *c)
 }
 
 /**
- * Update the X Server with a client's windowing details.
+ * Send a configure event to a client, informing it of
+ * its recently updated windowing details.
  */
 void
 configure(Client *c)
@@ -1008,6 +1009,9 @@ unmanage(Client *c)
 		PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
 }
 
+/**
+ * Automatically detect monitor layout.
+ */
 void
 updatemonitors()
 {
@@ -1027,6 +1031,12 @@ updatemonitors()
 	mons[0] = m;
 }
 
+/**
+ * The status message on the bar is update by changing
+ * the name of the root window. This method requeries the
+ * root window name for any updates and redraws the
+ * the new message to the bar.
+ */
 void
 updatestatus(void)
 {
@@ -1047,6 +1057,11 @@ updatestatus(void)
 * Event handler funcs
 ************************/
 
+/**
+ * Handle button press events. These will occur on the
+ * bar, around window edges, and on client windows which
+ * could be awaiting a click-to-raise.
+ */
 void
 buttonpress(XEvent *e)
 {
@@ -1080,20 +1095,35 @@ buttonpress(XEvent *e)
 	}
 }
 
+/**
+ * Handle client message events.
+ * This only listens for requests to change
+ * the fullscreen state of a client window.
+ */
 void
 clientmessage(XEvent *e)
 {
-	XClientMessageEvent *cme = &e->xclient;
-	Client *c = wintoclient(cme->window);
+	Client *c = wintoclient(e->xclient.window);
 
-	if (c && cme->message_type == xatom[NetWMState]
-	&& (cme->data.l[1] == xatom[NetWMFullscreen]
-		|| cme->data.l[2] == xatom[NetWMFullscreen]))
+	if (c && e->xclient.message_type == xatom[NetWMState]
+	&& (e->xclient.data.l[1] == xatom[NetWMFullscreen]
+		|| e->xclient.data.l[2] == xatom[NetWMFullscreen]))
 		/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
-		setfullscreen(c, (cme->data.l[0] == 1
-			|| (cme->data.l[0] == 2 && !c->isfullscreen)));
+		setfullscreen(c, (e->xclient.data.l[0] == 1
+			|| (e->xclient.data.l[0] == 2 && !c->isfullscreen)));
 }
 
+/**
+ * Handle requests to change window configurations
+ * of sub-windows.
+ * Managed windows support resizing and moving when
+ * when they are floating and on an active workspace.
+ * Note that this ignores (and swallows) changes
+ * to the border width for client windows as this
+ * isn't allowed.
+ * Requests for unmanaged windows are just applied
+ * in full.
+ */
 void
 configurerequest(XEvent *e)
 {
@@ -1101,26 +1131,8 @@ configurerequest(XEvent *e)
 	XConfigureRequestEvent *ev = &e->xconfigurerequest;
 	XWindowChanges wc;
 
-	if ((c = wintoclient(ev->window))) {
-		if (ev->value_mask & CWBorderWidth)
-			c->bw = ev->border_width;
-		if (c->isfloating) {
-			if (ev->value_mask & CWX)
-				c->x = c->fx = ev->x;
-			if (ev->value_mask & CWY)
-				c->y = c->fy = ev->y;
-			if (ev->value_mask & CWWidth)
-				c->w = c->fw = ev->width;
-			if (ev->value_mask & CWHeight)
-				c->h = c->fw = ev->height;
-			if ((ev->value_mask & (CWX|CWY))
-			&& !(ev->value_mask & (CWWidth|CWHeight)))
-				configure(c);
-			if (ISVISIBLE(c))
-				XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
-		} else
-			configure(c);
-	} else {
+	if (!(c = wintoclient(ev->window))) {
+		/* pass through to unmanaged windows */
 		wc.x = ev->x;
 		wc.y = ev->y;
 		wc.width = ev->width;
@@ -1131,7 +1143,9 @@ configurerequest(XEvent *e)
 		if (ev->value_mask & CWStackMode)
 			wc.stack_mode = ev->detail;
 		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
-	}
+	} else if (c->isfloating && ISVISIBLE(c))
+		/* allow resizing of managed floating windows in active workspaces */
+		resize(c, ev->x, ev->y, ev->width, ev->height);
 }
 
 void
