@@ -1,6 +1,6 @@
 /* See LICENSE file for copyright and license details.
  *
- * This is a minimal fork to dwm, aiming to be smaller, simpler
+ * This is a minimalistic fork to dwm, aiming to be smaller, simpler
  * and friendlier.
  *
  * Filet-Lignux's dynamic window manager is designed like any other X client.
@@ -1323,6 +1323,10 @@ propertynotify(XEvent *e)
 		setfullscreen(c, 1);
 }
 
+/**
+ * Handle unmap notify requests.
+ * Unmapped windows get removed and cleaned up after.
+ */
 void
 unmapnotify(XEvent *e)
 {
