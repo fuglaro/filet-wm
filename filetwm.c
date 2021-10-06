@@ -1148,6 +1148,12 @@ configurerequest(XEvent *e)
 		resize(c, ev->x, ev->y, ev->width, ev->height);
 }
 
+/**
+ * Handle event informing the window manager that
+ * a window is being detroyed.
+ * This simply removes the client for the window
+ * and clears up after it.
+ */
 void
 destroynotify(XEvent *e)
 {
@@ -1197,6 +1203,12 @@ exthandler(XEvent *ev)
 	}
 }
 
+/**
+ * Handle expose events.
+ * This means a window is exposed and needs redrawing.
+ * The only window we manage the redraw of is
+ * the status bar.
+ */
 void
 expose(XEvent *e)
 {
@@ -1204,6 +1216,11 @@ expose(XEvent *e)
 		drawbar();
 }
 
+/**
+ * Handle key press events by firing off the
+ * relevant action for any matching keyboard
+ * shortcuts.
+ */
 void
 keypress(XEvent *e)
 {
@@ -1213,6 +1230,11 @@ keypress(XEvent *e)
 			keys[i].func(&(keys[i].arg));
 }
 
+/**
+ * Handle map request events.
+ * This registers the window as a managed
+ * client and initialises its state.
+ */
 void
 maprequest(XEvent *e)
 {
@@ -1221,16 +1243,14 @@ maprequest(XEvent *e)
 	Client *c, *t = NULL;
 	Window trans = None;
 	XWindowChanges wc;
-	static XWindowAttributes wa;
+	XWindowAttributes wa;
 	XMapRequestEvent *ev = &e->xmaprequest;
 
 	if (!XGetWindowAttributes(dpy, ev->window, &wa) || wa.override_redirect
 	|| wintoclient(ev->window))
 		return;
 
-	/**
-	 * Manage the window by registering it as a new client
-	 */
+	/* manage the window by registering it as a new client */
 	if (!(c = calloc(1, sizeof(Client))))
 		DIE("calloc failed.\n");
 	attach(c);
@@ -1275,33 +1295,32 @@ maprequest(XEvent *e)
 	focus(c);
 }
 
+/**
+ * Handle property notify events.
+ * This manages the following situations:
+ *  - update status bar message (root window name changes)
+ *  - update size hints
+ *  - fullscreen state changes
+ */
 void
 propertynotify(XEvent *e)
 {
 	Client *c;
-	Window trans;
 	XPropertyEvent *ev = &e->xproperty;
 
+	/* handle bar status message updates */
 	if ((ev->window == root) && (ev->atom == XA_WM_NAME))
 		updatestatus();
-	else if (ev->state == PropertyDelete)
-		return; /* ignore */
-	else if ((c = wintoclient(ev->window))) {
-		switch(ev->atom) {
-		default: break;
-		case XA_WM_TRANSIENT_FOR:
-			if (!c->isfloating && (XGetTransientForHint(dpy, c->win, &trans)) &&
-				(c->isfloating = (wintoclient(trans)) != NULL))
-				arrange();
-			break;
-		case XA_WM_NORMAL_HINTS:
-			updatesizehints(c);
-			break;
-		}
-		if (ev->atom == xatom[NetWMWindowType])
-			if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
-				setfullscreen(c, 1);
-	}
+	/* ignore PropertyDelete or messages to unmanaged windows  */
+	if (ev->state == PropertyDelete || !(c = wintoclient(ev->window)))
+		return;
+	/* update size hints for later respecting during resizing */
+	if (ev->atom == XA_WM_NORMAL_HINTS)
+		updatesizehints(c);
+	/* make client fullscreen if needed */
+	else if (ev->atom == xatom[NetWMWindowType]
+	&& getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
+		setfullscreen(c, 1);
 }
 
 void
