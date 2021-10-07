@@ -95,7 +95,7 @@ make
 ```
 
 ## Dependencies
-amixer, xsetroot, bash, slock, awk, systemctl (suspend), xbacklight, man, st
+dmenu_run, amixer, xsetroot, bash, slock, awk, systemctl (suspend), xbacklight, man, st
 
 These dependencies can be changed with a configuration plugin.
 
