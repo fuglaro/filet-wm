@@ -10,25 +10,26 @@ tab (@);
 r l.
 Keys@Action
 _
+Win+MouseMotion:@show bar
 Win+Tab:@open launcher
 Win+Shift+Tab:@open terminal
 Win+Space:@move window
 Win+Alt+Space:@resize window
 Win+Ctrl+Space:@tile window
-Alt+Enter:@fullscreen window
-Win+Enter:@pin window
-Win+Alt+Enter:@raise window
-(Shift+)Alt+Tab:@switch window, and raise
+Win+Enter:@fullscreen window
+Win+Alt+Enter:@pin window
+Win+Shift+Enter:@raise window
 Win+Up/Down:@switch window
+Win+Shift+Up/Down:@switch window, and raise
 Win+Left/Right:@switch workspace
 Win+Shift+Left/Right:@switch workspace with window
 Win+[1-9]:@switch workspace
 Win+Shift+[1-9]:@move window to workspace
-Alt+[1-9]:@add window to workspace
-Alt+0:@add window to all workspaces
-Alt+F4:@close window
-Win+F4:@sleep
-Shift+Ctrl+Alt+F4:@quit
+Win+Alt+[1-9]:@add window to workspace
+Win+Alt+0:@add window to all workspaces
+Win+F4:@close window
+Win+Shift+F4:@sleep
+Win+Shift+Ctrl+F4:@quit
 .TE
 .RE
 
@@ -50,12 +51,8 @@ Window focus follows the mouse and clicks will raise a window. If any
 floating window is raised, all floating windows will sit above tiled windows.
 Fullscreen windows that are not raised will sit behind the tiled layer.
 .P
-The primary monitor contains a small status bar which contains four sections:
-a launcher button (to open applications), the selected window title, a
-customisable status pane, and a display of the virtual workspaces. The virtual
-workspace pane shows the selected workspace (highlighted), dots to indicate
-which workspaces contain windows, and inversed colors when a contained window
-has an alert.
+There is a small status bar which contains a display of the virtual workspaces,
+with the selected workspace highlighted, and a customisable status message.
 .P
 Windows have thin borders and indicate the focus state with a highlight color.
 
@@ -63,22 +60,22 @@ Windows have thin borders and indicate the focus state with a highlight color.
 The primary control interface is intended to be via the keyboard shortcuts
 detailed above, along with mouse control for window focus, click-to-raise,
 and all sizing movements, but additional mouse controls are supported:
+
 .RS
 .TS
 tab (@);
-r r l.
-Area@Button@Action
+r l.
+Trigger@Action
 _
-Window Top/Left Border@Button1:@initiate move
-Window Bottom/Right Border@Button1:@initiate resize
-Launcher Button@Button1:@open launcher
-Window Title@Button1:@next window
-Window Title@Button3:@previous window
-Status Section@Button1:@open help
-Virtual Workspaces@Button1:@show workspace
-Virtual Workspaces@Button3:@relocate window
+Left Click Selected Workspace:@open launcher
+Left Click New Workspace:@show workspace
+Right Click New Workspace:@relocate window
+Left Click Status Pane:@open help
+Left Click Top/Left Win-Edge:@move window
+Left Click Bottom/Right Win-Edge:@resize window
 .TE
 .RE
+
 
 .SH CUSTOMIZATION
 .SS Config plugins

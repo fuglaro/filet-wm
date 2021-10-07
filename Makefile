@@ -3,7 +3,7 @@
 
 VERSION = filetwm-8.0
 
-INCS = -I/usr/X11R6/include -I/usr/include/freetype2
+INCS = -I/usr/include/freetype2
 
 all: filetwm
 
