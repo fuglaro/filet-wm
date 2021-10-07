@@ -1074,7 +1074,7 @@ buttonpress(XEvent *e)
 	if (ev->window == barwin) {
 		/* check for click on one of the tags (workspaces)  */
 		for (i = 0; i < tagslen && ev->x > (x += TEXTW(tags[i])); i++);
-		click = tagset & 1 << i ? ClkSelTag : i < tagslen ? ClkTagBar : ClkStatus;
+		click = i >= tagslen ? ClkStatus : tagset & 1 << i ? ClkSelTag : ClkTagBar;
 		/* if unselected tag clicked, auto set argument to tag number */
 		if (click == ClkTagBar)
 			arg.ui = 1 << i;

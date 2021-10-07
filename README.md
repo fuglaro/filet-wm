@@ -246,9 +246,7 @@ void config(void) {
 
 # Future development goals
 
-* Update demo gif
 * Fix bug when Window lauches under curser (st) - mouse move unfocusses
-* Button press of status message sometimes gets stuck showing launcher.
 
 # Thanks to, grateful forks, and contributions
 
