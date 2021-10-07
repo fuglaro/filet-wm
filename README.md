@@ -121,7 +121,7 @@ cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 #define LEN(X) (sizeof X / sizeof *X)
 /* varible overide */
 #define S(T, N, V) extern T N; N = V;
-#define V(T, N, L, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N L]]
+#define V(T, N, L, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N L
 /* known length or null terminated array override */
 #define P(T, N, ...) V(T,N,,__VA_ARGS__;)
 /* variable length array override */
@@ -247,6 +247,8 @@ void config(void) {
 # Future development goals
 
 * Update demo gif
+* Fix bug when Window lauches under curser (st) - mouse move unfocusses
+* Button press of status message sometimes gets stuck showing launcher.
 
 # Thanks to, grateful forks, and contributions
 
