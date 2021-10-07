@@ -74,11 +74,10 @@ Significant changes:
 * Simpler monitor support - unified stack and workspaces.
 * Focus follows mouse and clicks raise.
 * Mouse support for window movement, resizing, and tile layout adjustment.
-* More familiar Alt+Tab behavior (restack on release).
-* More familiar bar layout with autofocus.
-* Dedicated launcher button.
+* Support for more familiar Alt+Tab behavior (restack on release).
+* Bar raises with mouse move and a held key.
+* Clicking on the currently selected workspace opens launcher.
 * Support for pinning windows.
-* Zen-mode for limiting bar updates.
 * More easily customise with post-compile configuration plugins.
 * A whole tonne less code.
 
