@@ -929,8 +929,10 @@ motion()
 	restack(NULL, (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8)))
 		? CliBarShow : CliBarHide);
 
-	/* get the client window under mouse (cached for speed) */
-	c = cw != lastcw ? wintoclient(cw) : c;
+	/* get the client window under mouse (cached for speed).
+	   note that windows can exist before they are mapped
+	   as clients so keep checking if the client is NULL. */
+	c = cw != lastcw || c == NULL ? wintoclient(cw) : c;
 	lastcw = cw;
 	/* focus follows mouse */
 	if (c && c != sel)

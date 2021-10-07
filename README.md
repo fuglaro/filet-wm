@@ -244,10 +244,6 @@ void config(void) {
 }
 ```
 
-# Future development goals
-
-* Fix bug when Window lauches under curser (st) - mouse move unfocusses
-
 # Thanks to, grateful forks, and contributions
 
 We stand on the shoulders of giants. They own this, far more than I do.
