@@ -244,6 +244,10 @@ void config(void) {
 }
 ```
 
+# TODO
+
+* Further cleanup like server grabbing, or xsync etc.
+
 # Thanks to, grateful forks, and contributions
 
 We stand on the shoulders of giants. They own this, far more than I do.

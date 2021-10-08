@@ -688,15 +688,6 @@ xerror(Display *dpy, XErrorEvent *ee)
 	return xerrorxlib(dpy, ee); /* may call exit */
 }
 
-/**
- * Xlib error handler for ignoring all errors.
- */
-int
-xerrordummy(Display *dpy, XErrorEvent *ee)
-{
-	return 0;
-}
-
 /***********************
 * General functions
 ************************/
@@ -1386,7 +1377,8 @@ focusstack(const Arg *arg)
  *                   window as the first window in the stack.
  */
 void
-grabresize(const Arg *arg) {
+grabresize(const Arg *arg)
+{
 	/* abort if already in the desired mode */
 	if (ctrlmode == arg->i)
 		return;
@@ -1430,15 +1422,8 @@ void
 killclient(const Arg *arg)
 {
 	const Client *c = arg->v ? arg->v : sel;
-	if (c && !sendevent(c, xatom[WMDelete])) {
-		XGrabServer(dpy);
-		XSetErrorHandler(xerrordummy);
-		XSetCloseDownMode(dpy, DestroyAll);
+	if (c && !sendevent(c, xatom[WMDelete]))
 		XKillClient(dpy, c->win);
-		XSync(dpy, False);
-		XSetErrorHandler(xerror);
-		XUngrabServer(dpy);
-	}
 }
 
 /**
