@@ -216,6 +216,7 @@ static unsigned long dl;
 static unsigned int dui;
 static Window dwin;
 
+
 /***********************
 * Configuration Section
 * Allows config plugins to change config variables.
@@ -242,9 +243,7 @@ KeySym stackrelease, barshow;
 Key *keys;
 Button *buttons;
 
-void
-defaultconfig(void)
-{
+void defaultconfig(void) {
 	/* appearance */
 	S(int, borderpx, 1); /* border pixel width of windows */
 	S(int, snap, 8); /* edge snap pixel distance */
@@ -351,29 +350,27 @@ defaultconfig(void)
 /* End Configuration Section
 ****************************/
 
+
 /***********************
 * Utility functions
 ************************/
 
+
 /**
  * Add a client to the top of the list.
  */
-void
-attach(Client *c)
-{
+void attach(Client *c) {
 	c->next = clients;
 	clients = c;
 }
+
 
 /**
  * Send a configure event to a client, informing it of
  * its recently updated windowing details.
  */
-void
-configure(Client *c)
-{
+void configure(Client *c) {
 	XConfigureEvent ce;
-
 	ce.type = ConfigureNotify;
 	ce.display = dpy;
 	ce.event = c->win;
@@ -388,24 +385,21 @@ configure(Client *c)
 	XSendEvent(dpy, c->win, False, StructureNotifyMask, (XEvent *)&ce);
 }
 
+
 /**
  * Remove a specific client from the list.
  */
-void
-detach(Client *c)
-{
+void detach(Client *c) {
 	Client **tc;
-
 	for (tc = &clients; *tc && *tc != c; tc = &(*tc)->next);
 	*tc = c->next;
 }
 
+
 /**
  * Query the X server for a window property.
  */
-Atom
-getatomprop(Client *c, Atom prop)
-{
+Atom getatomprop(Client *c, Atom prop) {
 	unsigned char *p = NULL;
 	Atom da, atom = None;
 
@@ -416,6 +410,7 @@ getatomprop(Client *c, Atom prop)
 	}
 	return atom;
 }
+
 
 /**
  * Resize the window of the given client, if the values change,
@@ -428,9 +423,7 @@ getatomprop(Client *c, Atom prop)
  * Also, the border width of the window is updated depending
  * on the fullscreen state.
  */
-void
-resize(Client *c, int x, int y, int w, int h)
-{
+void resize(Client *c, int x, int y, int w, int h) {
 	int m1, m2;
 	XWindowChanges wc;
 
@@ -490,6 +483,7 @@ resize(Client *c, int x, int y, int w, int h)
 	}
 }
 
+
 /**
  * Reorders client window stack, front to back (respecting layers).
  * Stack layer order is pinned, selected, floating, tiled, then fullscreen.
@@ -502,9 +496,7 @@ resize(Client *c, int x, int y, int w, int h)
  *  - CliBarShow: Raise bar (c ignored).
  *  - CliBarHide: Drop bar to its normal stack order (c ignored).
  */
-void
-restack(Client *c, int mode)
-{
+void restack(Client *c, int mode) {
 	int i = 0;
 	static Client *pinned = NULL, *raised = NULL;
 	Window up[3];
@@ -570,12 +562,11 @@ restack(Client *c, int mode)
 			}
 }
 
+
 /**
  * Send a message to a cliant via the XServer.
  */
-int
-sendevent(const Client *c, Atom proto)
-{
+int sendevent(const Client *c, Atom proto) {
 	int n;
 	Atom *protocols;
 	int exists = 0;
@@ -598,13 +589,12 @@ sendevent(const Client *c, Atom proto)
 	return exists;
 }
 
+
 /**
  * Signal handler that ensures zombie subprocesses
  * are cleaned up immediately.
  */
-void
-sigchld(int unused)
-{
+void sigchld(int unused) {
 	/* self-register this method as the SIGCHLD handler (if haven't already) */
 	if (signal(SIGCHLD, sigchld) == SIG_ERR)
 		DIE("can't install SIGCHLD handler.\n");
@@ -613,14 +603,13 @@ sigchld(int unused)
 	while (0 < waitpid(-1, NULL, WNOHANG));
 }
 
+
 /**
  * Retrieve size hint information for a client.
  * Stores the sizing information for the client
  * for future layout operations.
  */
-void
-updatesizehints(Client *c)
-{
+void updatesizehints(Client *c) {
 	long msize;
 	XSizeHints size;
 
@@ -647,18 +636,17 @@ updatesizehints(Client *c)
 	}
 }
 
+
 /**
  * Returns a pointer to the client which manages the given X window,
  * or NULL if the given X window is not a managed client.
  */
-Client *
-wintoclient(Window w)
-{
+Client* wintoclient(Window w) {
 	Client *c;
-
 	for (c = clients; c && c->win != w; c = c->next);
 	return c;
 }
+
 
 /**
  * Xlib error handler.
@@ -667,9 +655,7 @@ wintoclient(Window w)
  * on UnmapNotify's). Other types of errors call Xlibs
  * default error handler, which may call exit.
  */
-int
-xerror(Display *dpy, XErrorEvent *ee)
-{
+int xerror(Display *dpy, XErrorEvent *ee) {
 	if (ee->error_code == BadWindow
 	|| (ee->request_code == X_SetInputFocus && ee->error_code == BadMatch)
 	|| (ee->request_code == X_PolyText8 && ee->error_code == BadDrawable)
@@ -688,9 +674,11 @@ xerror(Display *dpy, XErrorEvent *ee)
 	return xerrorxlib(dpy, ee); /* may call exit */
 }
 
+
 /***********************
 * General functions
 ************************/
+
 
 /**
  * Rearranges all windows to display the ones
@@ -700,9 +688,7 @@ xerror(Display *dpy, XErrorEvent *ee)
  * it may have changed with a workspace (tag)
  * selection change.
  */
-void
-arrange(void)
-{
+void arrange(void) {
 	Client *c;
 	int m, h, mw;
 	/* maximum of 32 monitors supported */
@@ -749,40 +735,35 @@ arrange(void)
 	restack(sel, CliRaise);
 }
 
+
 /**
  * Finds the width of the given text, when drawn.
  */
-int
-drawntextwidth(const char *text)
-{
+int drawntextwidth(const char *text) {
 	XGlyphInfo ext;
 	XftTextExtentsUtf8(dpy, xfont, (XftChar8*)text, strlen(text), &ext);
 	return ext.xOff;
 }
 
+
 /**
  * Render the given text onto the bar's drawable with
  * a given position and background color.
  */
-void
-drawbartext(int x, int w, const char *text, const XftColor *bg)
-{
+void drawbartext(int x, int w, const char *text, const XftColor *bg) {
 	int ty = (BARH - (xfont->ascent + xfont->descent)) / 2 + xfont->ascent;
-
 	XSetForeground(dpy, gc, bg->pixel);
 	XFillRectangle(dpy, drawable, gc, x, 0, w, BARH);
 	XftDrawStringUtf8(drawablexft, &cols[fg], xfont, x + (TEXTPAD / 2), ty,
 		(XftChar8 *)text, strlen(text));
 }
 
+
 /**
  * Re-render the bar, updating the status text and workspaces (tags).
  */
-void
-drawbar()
-{
+void drawbar() {
 	int i, x = 0;
-
 	/* draw tags */
 	for (i = 0; i < tagslen; i++) {
 		drawbartext(x, TEXTW(tags[i]), tags[i], &cols[tagset & 1 << i ? mark : bg]);
@@ -795,6 +776,7 @@ drawbar()
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, barpos[2], BARH, 0, 0);
 }
 
+
 /**
  * Focus on the given client window, if provided,
  * and if it is visible (on the current workspace),
@@ -802,9 +784,7 @@ drawbar()
  * selection, if visible, or the highest visible
  * client window in the stack.
  */
-void
-focus(Client *c)
-{
+void focus(Client *c) {
 	/* if c is not set or not visible, update c to be
 	   the currently selected window, if it is visible,
 	   otherwise search for the next visible window in
@@ -832,17 +812,15 @@ focus(Client *c)
 	}
 }
 
+
 /**
  * Register all the keyboard shortcuts with the x server
  * so, as long as nothing else grabs the whole keyboard,
  * we will get keypress events when they are triggered.
  */
-void
-grabkeys(XEvent *e)
-{
+void grabkeys(XEvent *e) {
 	/* NumLock assumed to be Mod2Mask */
 	unsigned int mods[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
-
 	/* Register capture of all configured keyboard shortcuts. */
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
 	for (int i = 0; i < keyslen; i++)
@@ -851,15 +829,14 @@ grabkeys(XEvent *e)
 				True, GrabModeAsync, GrabModeAsync);
 }
 
+
 /**
  * This ends the process started by grabresize.
  * This is optimised to return quickly if not currently
  * within a grabresize state.
  * See grabresize.
  */
-void
-grabresizeabort()
-{
+void grabresizeabort() {
 	int m;
 
 	if (ctrlmode == CtrlNone || ctrlmode == ZoomStack)
@@ -878,6 +855,7 @@ grabresizeabort()
 	ctrlmode = CtrlNone;
 }
 
+
 /**
  * This is called for any mouse movement event and handles
  * resizing during grabresize states (see grabresize),
@@ -885,9 +863,7 @@ grabresizeabort()
  * state (see barshow), watching for window-edge behaviour,
  * and managing focus-follows-mouse behaviour.
  */
-void
-motion()
-{
+void motion() {
 	int rx, ry, x, y;
 	static int lx = 0, ly = 0;
 	unsigned int mask;
@@ -933,6 +909,7 @@ motion()
 		grabresize(&(Arg){.i = WinEdge});
 }
 
+
 /**
  * Set the fullscreen state and, if needed, carefully
  * switching back to the previous floating/tiling state.
@@ -941,11 +918,8 @@ motion()
  * @c: the client to change the fullscreen state
  * @fullcreen: the state to change to (1:fullscreen, 0:not)
  */
-void
-setfullscreen(Client *c, int fullscreen)
-{
+void setfullscreen(Client *c, int fullscreen) {
 	int w, h, m1, m2;
-
 	if (fullscreen && !c->isfullscreen) {
 		PROPSET(c->win, NetWMState, XA_ATOM, 32, &xatom[NetWMFullscreen], 1);
 		c->isfullscreen = 1;
@@ -977,6 +951,7 @@ setfullscreen(Client *c, int fullscreen)
 	arrange();
 }
 
+
 /**
  * Stop managing the given client as a client window
  * of this window manager. Update the selected window
@@ -991,9 +966,7 @@ setfullscreen(Client *c, int fullscreen)
  * client window launched from this window manager
  * after unmapping.
  */
-void
-unmanage(Client *c)
-{
+void unmanage(Client *c) {
 	restack(c, CliRemove);
 	arrange();
 	free(c);
@@ -1002,12 +975,11 @@ unmanage(Client *c)
 		PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
 }
 
+
 /**
  * Automatically detect monitor layout.
  */
-void
-updatemonitors()
-{
+void updatemonitors() {
 	int i, pri = 0, n;
 	Monitor m;
 	XRRMonitorInfo *inf;
@@ -1024,15 +996,14 @@ updatemonitors()
 	mons[0] = m;
 }
 
+
 /**
  * The status message on the bar is update by changing
  * the name of the root window. This method requeries the
  * root window name for any updates and redraws the
  * the new message to the bar.
  */
-void
-updatestatus(void)
-{
+void updatestatus(void) {
 	char **v = NULL;
 	XTextProperty p;
 
@@ -1046,23 +1017,24 @@ updatestatus(void)
 	drawbar();
 }
 
+
 /***********************
 * Event handler funcs
 ************************/
+
 
 /**
  * Handle button press events. These will occur on the
  * bar, around window edges, and on client windows which
  * could be awaiting a click-to-raise.
  */
-void
-buttonpress(XEvent *e)
-{
+void buttonpress(XEvent *e) {
 	unsigned int i;
 	int x = 0, click;
 	Client *c;
 	Arg arg = {0};
 	XButtonPressedEvent *ev = &e->xbutton;
+
 	/* click actions for the bar */
 	if (ev->window == barwin) {
 		/* check for click on one of the tags (workspaces)  */
@@ -1088,16 +1060,14 @@ buttonpress(XEvent *e)
 	}
 }
 
+
 /**
  * Handle client message events.
  * This only listens for requests to change
  * the fullscreen state of a client window.
  */
-void
-clientmessage(XEvent *e)
-{
+void clientmessage(XEvent *e) {
 	Client *c = wintoclient(e->xclient.window);
-
 	if (c && e->xclient.message_type == xatom[NetWMState]
 	&& (e->xclient.data.l[1] == xatom[NetWMFullscreen]
 		|| e->xclient.data.l[2] == xatom[NetWMFullscreen]))
@@ -1105,6 +1075,7 @@ clientmessage(XEvent *e)
 		setfullscreen(c, (e->xclient.data.l[0] == 1
 			|| (e->xclient.data.l[0] == 2 && !c->isfullscreen)));
 }
+
 
 /**
  * Handle requests to change window configurations
@@ -1117,9 +1088,7 @@ clientmessage(XEvent *e)
  * Requests for unmanaged windows are just applied
  * in full.
  */
-void
-configurerequest(XEvent *e)
-{
+void configurerequest(XEvent *e) {
 	Client *c;
 	XConfigureRequestEvent *ev = &e->xconfigurerequest;
 	XWindowChanges wc;
@@ -1141,17 +1110,15 @@ configurerequest(XEvent *e)
 		resize(c, ev->x, ev->y, ev->width, ev->height);
 }
 
+
 /**
  * Handle event informing the window manager that
  * a window is being detroyed.
  * This simply removes the client for the window
  * and clears up after it.
  */
-void
-destroynotify(XEvent *e)
-{
+void destroynotify(XEvent *e) {
 	Client *c;
-
 	if ((c = wintoclient(e->xdestroywindow.window)))
 		unmanage(c);
 }
@@ -1166,10 +1133,7 @@ destroynotify(XEvent *e)
  *  - ending resize or move actions on any key release.
  * See the keyproess function for keyboard shortcut handling.
  */
-void
-exthandler(XEvent *ev)
-{
-
+void exthandler(XEvent *ev) {
 	switch (ev->xcookie.evtype) {
 	case XI_RawMotion:
 		motion();
@@ -1196,41 +1160,38 @@ exthandler(XEvent *ev)
 	}
 }
 
+
 /**
  * Handle expose events.
  * This means a window is exposed and needs redrawing.
  * The only window we manage the redraw of is
  * the status bar.
  */
-void
-expose(XEvent *e)
-{
+void expose(XEvent *e) {
 	if (e->xexpose.count == 0)
 		drawbar();
 }
+
 
 /**
  * Handle key press events by firing off the
  * relevant action for any matching keyboard
  * shortcuts.
  */
-void
-keypress(XEvent *e)
-{
+void keypress(XEvent *e) {
 	for (int i = 0; i < keyslen; i++)
 		if (e->xkey.keycode == KCODE(keys[i].key)
 		&& KEYMASK(keys[i].mod) == KEYMASK(e->xkey.state))
 			keys[i].func(&(keys[i].arg));
 }
 
+
 /**
  * Handle map request events.
  * This registers the window as a managed
  * client and initialises its state.
  */
-void
-maprequest(XEvent *e)
-{
+void maprequest(XEvent *e) {
 	int x, y, m;
 	long state[] = { NormalState, None };
 	Client *c, *t = NULL;
@@ -1288,6 +1249,7 @@ maprequest(XEvent *e)
 	focus(c);
 }
 
+
 /**
  * Handle property notify events.
  * This manages the following situations:
@@ -1295,9 +1257,7 @@ maprequest(XEvent *e)
  *  - update size hints
  *  - fullscreen state changes
  */
-void
-propertynotify(XEvent *e)
-{
+void propertynotify(XEvent *e) {
 	Client *c;
 	XPropertyEvent *ev = &e->xproperty;
 
@@ -1316,31 +1276,29 @@ propertynotify(XEvent *e)
 		setfullscreen(c, 1);
 }
 
+
 /**
  * Handle unmap notify requests.
  * Unmapped windows get removed and cleaned up after.
  */
-void
-unmapnotify(XEvent *e)
-{
+void unmapnotify(XEvent *e) {
 	Client *c;
-
 	if ((c = wintoclient(e->xunmap.window)) && !e->xunmap.send_event)
 		unmanage(c);
 }
 
+
 /***********************
 * Config callable funcs
 ************************/
+
 
 /**
  * Select the next or previous window in the stack.
  * @arg: contains i parameter identifying the direction
  *       to cycle (positive -> next, negative -> previous)
  */
-void
-focusstack(const Arg *arg)
-{
+void focusstack(const Arg *arg) {
 	Client *c = NULL, *i;
 
 	if (!sel)
@@ -1364,6 +1322,7 @@ focusstack(const Arg *arg)
 	}
 }
 
+
 /**
  * Start resizing the currently selected window with
  * a given resize mode. Further mouse movements will
@@ -1376,9 +1335,7 @@ focusstack(const Arg *arg)
  *                   change the tiling layout to best fit the
  *                   window as the first window in the stack.
  */
-void
-grabresize(const Arg *arg)
-{
+void grabresize(const Arg *arg) {
 	/* abort if already in the desired mode */
 	if (ctrlmode == arg->i)
 		return;
@@ -1400,6 +1357,7 @@ grabresize(const Arg *arg)
 		restack(sel, CliRaise);
 }
 
+
 /**
  * Start cycling the selection through the windows in such
  * a way that when the stackrelease key is released,
@@ -1408,42 +1366,37 @@ grabresize(const Arg *arg)
  * @arg: contains i parameter identifying the direction
  *       to cycle (positive -> next, negative -> previous)
  */
-void
-grabstack(const Arg *arg)
-{
+void grabstack(const Arg *arg) {
 	ctrlmode = ZoomStack;
 	focusstack(arg);
 }
 
+
 /**
  * Terminate the currently selected window.
  */
-void
-killclient(const Arg *arg)
-{
+void killclient(const Arg *arg) {
 	const Client *c = arg->v ? arg->v : sel;
 	if (c && !sendevent(c, xatom[WMDelete]))
 		XKillClient(dpy, c->win);
 }
+
 
 /**
  * Switch pinned state for the selected window.
  * The pinned state displays the window above
  * all other windows including selected windows.
  */
-void
-pin(const Arg *arg)
-{
+void pin(const Arg *arg) {
 	restack(sel, CliPin);
 }
+
 
 /**
  * Shutdown the whole window manager including all
  * client windows.
  */
-void
-quit(const Arg *arg)
-{
+void quit(const Arg *arg) {
 	end = 1;
 }
 
@@ -1453,9 +1406,7 @@ quit(const Arg *arg)
  * @arg: contains char array v parameter with the
  *       the command and arguments to launch.
  */
-void
-spawn(const Arg *arg)
-{
+void spawn(const Arg *arg) {
 	if (fork() != 0)
 		return;
 	close(ConnectionNumber(dpy));
@@ -1464,26 +1415,24 @@ spawn(const Arg *arg)
 	exit(EXIT_FAILURE);
 }
 
+
 /**
  * Move the currently selected window to a different workspace.
  * @arg: contains ui parameter identifying the workspace
  *       number to move to.
  */
-void
-tag(const Arg *arg)
-{
+void tag(const Arg *arg) {
 	if (sel && arg->ui & TAGMASK) {
 		sel->tags = arg->ui & TAGMASK;
 		arrange();
 	}
 }
 
+
 /**
  * Switch floating/tiled states for the selected window.
  */
-void
-togglefloating(const Arg *arg)
-{
+void togglefloating(const Arg *arg) {
 	if (sel && sel->isfullscreen)
 		setfullscreen(sel, 0);
 	if (sel && (sel->isfloating = !sel->isfloating))
@@ -1491,15 +1440,15 @@ togglefloating(const Arg *arg)
 	arrange();
 }
 
+
 /**
  * Switch fullcreen state for the selected window.
  */
-void
-togglefullscreen(const Arg *arg)
-{
+void togglefullscreen(const Arg *arg) {
 	if (sel)
 		setfullscreen(sel, !sel->isfullscreen);
 }
+
 
 /**
  * Toogle (add/remove) window to specified workspace(s),
@@ -1507,40 +1456,37 @@ togglefullscreen(const Arg *arg)
  * @arg: contains ui parameter with a bitmask indicating the
  *       workspace numbers to toggle for.
  */
-void
-toggletag(const Arg *arg)
-{
+void toggletag(const Arg *arg) {
 	if (sel && sel->tags ^ (arg->ui & TAGMASK)) {
 		sel->tags = sel->tags ^ (arg->ui & TAGMASK);
 		arrange();
 	}
 }
 
+
 /**
  * Move to a different workspace.
  * @arg: contains ui parameter identifying the workspace
  *       number to move to.
  */
-void
-view(const Arg *arg)
-{
+void view(const Arg *arg) {
 	tagset = arg->ui & TAGMASK;
 	drawbar();
 	arrange();
 }
+
 
 /**
  * Move to the next or previous workspace.
  * @arg: contains i parameter for the workspace
  *       number to increase by (negative decreases)
  */
-void
-viewshift(const Arg *arg)
-{
+void viewshift(const Arg *arg) {
 	tagset = TAGSHIFT(tagset, arg->i);
 	drawbar();
 	arrange();
 }
+
 
 /**
  * Move with the selected window
@@ -1548,35 +1494,32 @@ viewshift(const Arg *arg)
  * @arg: contains i parameter for the workspace
  *       number to increase by (negative decreases)
  */
-void
-viewtagshift(const Arg *arg)
-{
+void viewtagshift(const Arg *arg) {
 	if (sel)
 		sel->tags = TAGSHIFT(sel->tags, arg->i);
 	viewshift(arg);
 }
 
+
 /**
  * Bring the selected window to the top of the stack.
  */
-void
-zoom(const Arg *arg)
-{
+void zoom(const Arg *arg) {
 	restack(sel, CliZoom);
 	arrange(); /* zooming tiled windows can rearrange tiling */
 }
+
 
 /***********************
 * Core execution code
 ************************/
 
+
 /**
  * Initialise the whole window manager and all settings
  * ready for the event loop.
  */
-void
-setup(void)
-{
+void setup(void) {
 	int screen, xre;
 	unsigned char xi[XIMaskLen(XI_LASTEVENT)] = {0};
 	XIEventMask evm;
@@ -1682,9 +1625,12 @@ setup(void)
 	focus(NULL);
 }
 
-int
-main(int argc, char *argv[])
-{
+
+/**
+ * Main program starting point including
+ * command help, main loop, and exit cleanup.
+ */
+int main(int argc, char *argv[]) {
 	XEvent ev;
 
 	if (argc == 2 && !strcmp("-v", argv[1]))
