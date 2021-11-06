@@ -439,7 +439,7 @@ void resize(Client *c, int x, int y, int w, int h) {
 		c->fy = y;
 		c->fw = w;
 		c->fh = h;
-		/* snap position to edges */
+		/* find monitor so as to snap position to edges */
 		for (m1 = 0; m1 < monslen-1 && !INMON(x+snap, y+snap, mons[m1]); m1++);
 		for (m2 = 0; m2 < monslen-1 && !INMON(x+w-snap, y+h-snap, mons[m2]); m2++);
 		/* snap position */
@@ -1235,8 +1235,6 @@ void maprequest(XEvent *e) {
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, ev->window, CWBorderWidth, &wc);
 	configure(c); /* propagates border_width, if size doesn't change */
-	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
-		setfullscreen(c, 1);
 	updatesizehints(c);
 	XSelectInput(dpy, ev->window, PropertyChangeMask|StructureNotifyMask);
 	PROPADD(Append, root, NetClientList, XA_WINDOW, 32, &c->win, 1);
@@ -1244,6 +1242,8 @@ void maprequest(XEvent *e) {
 	XMoveResizeWindow(dpy, c->win, c->fx + 2 * sw, c->fy, c->fw, c->fh);
 	PROPSET(c->win, WMState, xatom[WMState], 32, state, 2);
 	resize(c, c->fx, c->fy, c->fw, c->fh);
+	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
+		setfullscreen(c, 1);
 	restack(c, CliRaise);
 	XMapWindow(dpy, c->win);
 	focus(c);
