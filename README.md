@@ -249,7 +249,6 @@ void config(void) {
 * Further cleanup like server grabbing, or xsync etc.
 * Mouse movement when not bar-raising should drop the bar directly under the lowest of cursor window and selected window.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
-* Border colors indicating tiled mode or pinned.
 * Clearer easier setup of filetwm on its own. - e.g: setup instructions that make the help page work. helps with st install, man page install. etc.
 
 # Thanks to, grateful forks, and contributions

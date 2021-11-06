@@ -205,7 +205,7 @@ static Display *dpy;              /* X session display reference */
 static Drawable drawable;         /* canvas for drawing (bar) */
 static XftDraw *drawablexft;      /* font rendering for canvas */
 static GC gc;                     /* graphics context */
-static Client *clients, *sel;     /* references to managed windows */
+static Client *clients, *pinned = NULL, *sel;     /* references to managed windows */
 static Window root, wmcheckwin;
 static Cursor curpoint, cursize;  /* mouse cursor icons */
 static XftColor cols[colslen];    /* colors (fg, bg, mark, bdr, selbdr) */
@@ -498,7 +498,7 @@ void resize(Client *c, int x, int y, int w, int h) {
  */
 void restack(Client *c, int mode) {
 	int i = 0;
-	static Client *pinned = NULL, *raised = NULL;
+	static Client *raised = NULL;
 	Window up[3];
 	XWindowChanges wc;
 
@@ -796,7 +796,7 @@ void focus(Client *c) {
 		XGrabButton(dpy, AnyButton, AnyModifier, sel->win, False,
 			ButtonPressMask, GrabModeSync, GrabModeSync, None, None);
 		/* unfocus */
-		XSetWindowBorder(dpy, sel->win, cols[bdr].pixel);
+		XSetWindowBorder(dpy, sel->win, cols[sel == pinned ? mark : bdr].pixel);
 	}
 	sel = c;
 	/* focus on the new selected window */
