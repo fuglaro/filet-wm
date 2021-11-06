@@ -205,7 +205,8 @@ static Display *dpy;              /* X session display reference */
 static Drawable drawable;         /* canvas for drawing (bar) */
 static XftDraw *drawablexft;      /* font rendering for canvas */
 static GC gc;                     /* graphics context */
-static Client *clients, *pinned = NULL, *sel;     /* references to managed windows */
+                                  /* references to managed windows */
+static Client *clients, *pinned = NULL, *sel;
 static Window root, wmcheckwin;
 static Cursor curpoint, cursize;  /* mouse cursor icons */
 static XftColor cols[colslen];    /* colors (fg, bg, mark, bdr, selbdr) */
@@ -896,16 +897,13 @@ void motion() {
 	restack(NULL, (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8)))
 		? CliBarShow : CliBarHide);
 
-	/* get the client window under mouse (cached for speed).
-	   note that windows can exist before they are mapped
-	   as clients so keep checking if the client is NULL. */
-	c = cw != lastcw || c == NULL ? wintoclient(cw) : c;
-	lastcw = cw;
-	/* focus follows mouse */
-	if (c && c != sel)
+	/* focus follows client window under mouse (cached for speed) */
+	if (cw != lastcw && (c = wintoclient(cw)) && c != sel)
 		focus(c);
+	lastcw = cw;
+
 	/* watch for border edge locations for resizing */
-	if (c && !mask && (MOVEZONE(c, rx, ry) || RESIZEZONE(c, rx, ry)))
+	if (sel && !mask && (MOVEZONE(sel, rx, ry) || RESIZEZONE(sel, rx, ry)))
 		grabresize(&(Arg){.i = WinEdge});
 }
 
