@@ -97,7 +97,7 @@ enum { ClkStatus, ClkTagBar, ClkSelTag, ClkLast };
 /* mouse motion modes */
 enum { DragMove, DragSize, DragTile, WinEdge, ZoomStack, CtrlNone };
 /* window stack actions */
-enum { CliPin, CliRaise, CliZoom, CliRemove, CliBarShow, CliBarHide };
+enum { CliPin, CliRaise, CliZoom, CliRemove, CliBarShow, CliBarHide, CliNone };
 
 /* argument template for keyboard shortcut and bar click actions */
 typedef union {
@@ -498,9 +498,7 @@ void resize(Client *c, int x, int y, int w, int h) {
  *  - CliBarHide: Drop bar to its normal stack order (c ignored).
  */
 void restack(Client *c, int mode) {
-	int i = 0;
 	static Client *raised = NULL;
-	Window up[3];
 	XWindowChanges wc;
 
 	switch (mode) {
@@ -536,27 +534,29 @@ void restack(Client *c, int mode) {
 		attach(pinned);
 	}
 
+	/* start window stacking */
 	/* show windows that sit above the standard layers */
+	/* bar window is above all when bar is focused,
+	   or under selected pinned or selected raised window */
 	XDeleteProperty(dpy, root, xatom[NetCliStack]);
-	if (barfocus) up[i++] = barwin;
-	if (pinned) {
-		up[i++] = pinned->win;
-		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
+	XRaiseWindow(dpy, (wc.sibling = barwin));
+	XRaiseWindow(dpy, raised ? raised->win : -1);
+	XRaiseWindow(dpy, pinned ? pinned->win : -1);
+	if (barfocus || (pinned != sel && raised != sel)) {
+		XRaiseWindow(dpy, barwin);
+		wc.sibling = raised || pinned || barwin;
 	}
-	if (raised) {
-		up[i++] = raised->win;
+	if (raised)
 		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
-	}
-	if (!barfocus) up[i++] = barwin;
-	XRaiseWindow(dpy, up[0]);
-	XRestackWindows(dpy, up, i);
-	wc.stack_mode = Below;
-	wc.sibling = up[i - 1];
+	if (pinned)
+		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
 
+	/* show all other windows in the standard layers */
+	wc.stack_mode = Below;
 	/* order layers - floating then tiled then fullscreen (if not raised) */
-	for (i = 0; i < 3; i++) /* i is layers: 0=floating, 1=tiled, 3=fullscreen */
+	for (int layer = 0; layer < 3; layer++) /* 0=floating 1=tiled 2=fullscreen */
 		for (c = clients; c; c = c->next)
-			if (c != pinned && c != raised && !c->isfloating + c->isfullscreen == i) {
+			if (c!=pinned && c!=raised && !c->isfloating+c->isfullscreen == layer) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				wc.sibling = c->win;
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
@@ -811,6 +811,8 @@ void focus(Client *c) {
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	}
+	/* Refresh the stack in case the bar should now be shown */
+	restack(NULL, CliNone);
 }
 
 
