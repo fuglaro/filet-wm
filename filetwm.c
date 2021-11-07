@@ -1633,8 +1633,6 @@ void setup(void) {
 int main(int argc, char *argv[]) {
 	XEvent ev;
 
-	if (argc == 2 && !strcmp("-v", argv[1]))
-		DIE("filetwm-"VERSION"\n");
 	if (argc != 1)
 		DIE("usage: filetwm [-v]\n");
 	if (!(dpy = XOpenDisplay(NULL)))
