@@ -1,14 +1,12 @@
 # filetwm - dynamic window manager (filet-lignux fork of dwm)
 # See LICENSE file for copyright and license details.
 
-VERSION = filetwm-8.0
-
 INCS = -I/usr/include/freetype2
 
 all: filetwm
 
 .c.o:
-	cc -c -std=c99 -pedantic -Wall -Os ${INCS} -DVERSION=\"${VERSION}\" $<
+	cc -c -std=c99 -pedantic -Wall -Os ${INCS} $<
 
 filetwm: filetwm.o
 	cc -rdynamic -o $@ $? -lX11 -lXi -lfontconfig -lXft -lXrandr -ldl
