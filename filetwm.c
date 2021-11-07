@@ -1526,6 +1526,9 @@ void setup(void) {
 	Atom utf8string;
 	void (*conf)(void);
 
+	if (!(dpy = XOpenDisplay(NULL)))
+		DIE("filetwm: cannot open display.\n");
+
 	/* register handler to clean up any zombies immediately */
 	sigchld(0);
 
@@ -1635,8 +1638,6 @@ int main(int argc, char *argv[]) {
 
 	if (argc != 1)
 		DIE("usage: filetwm [-v]\n");
-	if (!(dpy = XOpenDisplay(NULL)))
-		DIE("filetwm: cannot open display.\n");
 
 	setup();
 
