@@ -249,6 +249,9 @@ void config(void) {
 * Further cleanup like server grabbing, or xsync etc.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
 * Clearer easier setup of filetwm on its own. - e.g: setup instructions that make the help page work. helps with st install, man page install. etc.
+ * Search through common terminals. In case it isn't installed.
+ * Also find the man page alongside the executable.
+ * Enhance the bar to have command launching like dmenu.
 
 # Thanks to, grateful forks, and contributions
 
