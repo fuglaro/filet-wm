@@ -1092,8 +1092,6 @@ void buttonpress(XEvent *e) {
 		/* launch the command */
 		spawner = (char***)&(char*[]){cmd, NULL};
 		spawn(&(Arg){.v = &spawner});
-
-
 	} else {
 		/* other click actions */
 		launcher(&(Arg){.i = 0});
