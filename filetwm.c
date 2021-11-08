@@ -1260,7 +1260,7 @@ void keypress(XEvent *e) {
 		KCHAR(&e->xkey, &cmdfilter[strlen(cmdfilter)], LENCMD-strlen(cmdfilter)-1);
 		CMDFIND(0, +1)
 	}
-	/* redraw the bar commands or close launchr */
+	/* redraw the bar commands or close launcher */
 	launcher(&(Arg){.i = (KCODE(XK_Escape) != e->xkey.keycode)});
 }
 
@@ -1503,7 +1503,6 @@ void quit(const Arg *arg) {
  *       the command and arguments to launch.
  */
 void spawn(const Arg *arg) {
-	printf("--%s--\n", (*(char***)arg->v)[0]);
 	if (fork() != 0)
 		return;
 	close(ConnectionNumber(dpy));
