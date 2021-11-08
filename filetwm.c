@@ -26,6 +26,7 @@
  */
 
 #include <dlfcn.h>
+#include <dirent.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -50,6 +51,8 @@
                      /* leave the loaded lib in memory until process cleanup */
 #define KEYMASK(mask) (mask & (ShiftMask|ControlMask|Mod1Mask|Mod4Mask))
 #define KCODE(keysym) ((KeyCode)(XKeysymToKeycode(dpy, keysym)))
+#define KCHAR(E, C, L) (Xutf8LookupString(XCreateIC(XOpenIM(dpy, 0, 0, 0),\
+	XNInputStyle, XIMPreeditNothing|XIMStatusNothing, NULL), E, C, L, NULL, NULL))
 #define ISVISIBLE(C) ((C->tags & tagset))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
@@ -85,6 +88,13 @@
 #define TAGSHIFT(TAGS, I) (I < 0 ? (TAGS >> -I) | (TAGS << (tagslen + I))\
 	: (TAGS << I) | (TAGS >> (tagslen - I)))
 
+/* launcher macros */
+#define NUMCMDS 8000
+#define LENCMD 64
+#define CMDCMP(I) (strncmp(cmdfilter, cmds[I], strlen(cmdfilter)))
+#define CMDFIND(S,D) {for (int i = S; i>=0 && i<NUMCMDS && cmds[i][0]; i = i D)\
+	if (!CMDCMP(i)) {cmdi = i; break;}}
+
 /* enums */
 enum { fg, bg, mark, bdr, selbdr, colslen }; /* colors */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck, /* EWMH atoms */
@@ -97,7 +107,7 @@ enum { ClkStatus, ClkTagBar, ClkSelTag, ClkLast };
 /* mouse motion modes */
 enum { DragMove, DragSize, DragTile, WinEdge, ZoomStack, CtrlNone };
 /* window stack actions */
-enum { CliPin, CliRaise, CliZoom, CliRemove, CliBarShow, CliBarHide, CliNone };
+enum { CliPin, CliRaise, CliZoom, CliRemove, BarShow, BarHide, CliNone };
 
 /* argument template for keyboard shortcut and bar click actions */
 typedef union {
@@ -145,6 +155,7 @@ void focusstack(const Arg *arg);
 void grabresize(const Arg *arg);
 void grabstack(const Arg *arg);
 void killclient(const Arg *arg);
+void launcher(const Arg *arg);
 void pin(const Arg *arg);
 void quit(const Arg *arg);
 void spawn(const Arg *arg);
@@ -174,11 +185,11 @@ static void unmapnotify(XEvent *e);
 static void focus(Client *c);
 
 /* variables */
-static char stxt[256] = { /* status text */
+static char cmds[NUMCMDS][LENCMD], cmdfilter[LENCMD] = {'\0'}, stxt[256] = {
 	'F','i','l','e','t','L','i','g','n','u','x','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
 static Window barwin;        /* the bar */
-static int barfocus;         /* when the bar is forced raised */
+static int barfocus, barcmds, cmdi; /* bar status (force raised, in launcher) */
 static int ctrlmode = CtrlNone; /* mouse mode (resize/repos/arrange/etc) */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int tagset = 1; /* mask for which workspaces are displayed */
@@ -235,7 +246,7 @@ static Window dwin;
 
 /* configurable values (see defaultconfig) */
 Monitor *mons;
-char *font, **colors, **tags, **launcher, **terminal, **upvol,
+char *font, **colors, **tags, **terminal, **upvol,
 	**downvol, **mutevol, **suspend, **dimup, **dimdown, **help;
 int borderpx, snap, tagslen, monslen, *nmain, keyslen, buttonslen;
 int *barpos;
@@ -248,7 +259,7 @@ void defaultconfig(void) {
 	/* appearance */
 	S(int, borderpx, 1); /* border pixel width of windows */
 	S(int, snap, 8); /* edge snap pixel distance */
-	S(char*, font, "monospace:size=8");
+	S(char*, font, "monospace:size=7");
 	/* colors (must be five colors: fg, bg, highlight, border, sel-border) */
 	P(char*, colors, { "#dddddd", "#111111", "#335577", "#555555", "#dd4422" });
 
@@ -278,9 +289,6 @@ void defaultconfig(void) {
 	P(int, nmain, {1});
 
 	/* commands */
-	P(char*, launcher, { "dmenu_run", "-p", ">", "-m", "0", "-i", "-fn",
-		"monospace:size=8", "-nf", "#dddddd", "-sf", "#dddddd", "-nb", "#111111",
-		"-sb", "#335577", NULL });
 	P(char*, terminal, { "st", NULL });
 	P(char*, help, { "st", "-e", "bash", "-c",
 		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
@@ -309,7 +317,7 @@ void defaultconfig(void) {
 	S(KeySym, barshow, XK_Super_L);
 	A(Key, keys, {
 		/*               modifier / key, function / argument */
-		{               WinMask, XK_Tab, spawn, {.v = &launcher } },
+		{               WinMask, XK_Tab, launcher, {.i = 1} },
 		{     WinMask|ShiftMask, XK_Tab, spawn, {.v = &terminal } },
 		{             WinMask, XK_space, grabresize, {.i = DragMove } },
 		{     WinMask|AltMask, XK_space, grabresize, {.i = DragSize } },
@@ -341,7 +349,7 @@ void defaultconfig(void) {
 	/* bar actions */
 	A(Button, buttons, {
 		/* click,      button, function / argument */
-		{ ClkSelTag,   Button1, spawn, {.v = &launcher } },
+		{ ClkSelTag,   Button1, launcher, {.i = 1} },
 		{ ClkStatus,   Button1, spawn, {.v = &help } },
 		{ ClkTagBar,   Button1, view, {0} },
 		{ ClkTagBar,   Button3, tag, {0} },
@@ -494,8 +502,8 @@ void resize(Client *c, int x, int y, int w, int h) {
  *  - CliRaise: temporarily show above all layers, but below pinned.
  *  - CliZoom: bring the window to the top of stack.
  *  - CliRemove: Remove window from stack entirely.
- *  - CliBarShow: Raise bar (c ignored).
- *  - CliBarHide: Drop bar to its normal stack order (c ignored).
+ *  - BarShow: Raise bar (c ignored).
+ *  - BarHide: Drop bar to its normal stack order (c ignored).
  */
 void restack(Client *c, int mode) {
 	static Client *raised = NULL;
@@ -512,11 +520,11 @@ void restack(Client *c, int mode) {
 		raised = raised != c ? raised : NULL;
 		sel = sel != c ? sel : NULL;
 		break;
-	case CliBarShow:
-	case CliBarHide:
-		if (barfocus == (mode == CliBarShow))
+	case BarHide:
+	case BarShow:
+		if (barfocus == (mode == BarShow))
 			return;
-		barfocus = mode == CliBarShow;
+		barfocus = mode == BarShow;
 		focus(sel);
 		break;
 	case CliZoom:
@@ -750,28 +758,49 @@ int drawntextwidth(const char *text) {
 /**
  * Render the given text onto the bar's drawable with
  * a given position and background color.
+ * @x: the horizontal position to start writing.
+ * @text: the text to write.
+ * @bg: the background color to use.
+ * Returns the horizontal position at the end of the writing.
  */
-void drawbartext(int x, int w, const char *text, const XftColor *bg) {
+int drawbartext(int x, const char *text, const XftColor *bg) {
 	int ty = (BARH - (xfont->ascent + xfont->descent)) / 2 + xfont->ascent;
 	XSetForeground(dpy, gc, bg->pixel);
-	XFillRectangle(dpy, drawable, gc, x, 0, w, BARH);
+	XFillRectangle(dpy, drawable, gc, x, 0, TEXTW(text), BARH);
 	XftDrawStringUtf8(drawablexft, &cols[fg], xfont, x + (TEXTPAD / 2), ty,
 		(XftChar8 *)text, strlen(text));
+	return x + TEXTW(text);
 }
 
 
 /**
  * Re-render the bar, updating the status text and workspaces (tags).
+ * If the bar is in launcher mode, draw the launcher status instead.
  */
 void drawbar() {
-	int i, x = 0;
-	/* draw tags */
-	for (i = 0; i < tagslen; i++) {
-		drawbartext(x, TEXTW(tags[i]), tags[i], &cols[tagset & 1 << i ? mark : bg]);
-		x += TEXTW(tags[i]);
+	int i, x = 0, f = 0;
+
+	/* blank the drawable */
+	XSetForeground(dpy, gc, cols[bg].pixel);
+	XFillRectangle(dpy, drawable, gc, 0, 0, barpos[2], BARH);
+
+	if (barcmds) {
+		/* draw command filter (being typed) */
+		x = drawbartext(x, cmdfilter, &cols[bg]);
+		/* draw command matches */
+		for (i = cmdi; i < NUMCMDS && cmds[i][0] && x < barpos[2]; i++)
+			if (!CMDCMP(i))
+				x = drawbartext(x, cmds[i], &cols[f++==0?mark:bg]);
+		/* highlight typed text if no match */
+		if (CMDCMP(cmdi))
+			drawbartext(0, cmdfilter, &cols[mark]);
+	} else {
+		/* draw tags */
+		for (i = 0; i < tagslen; i++)
+			x = drawbartext(x, tags[i], &cols[tagset&1<<i ?mark:bg]);
+		/* draw status */
+		drawbartext(x, stxt, &cols[bg]);
 	}
-	/* draw status */
-	drawbartext(x, barpos[2], stxt, &cols[bg]);
 
 	/* display composited bar */
 	XCopyArea(dpy, drawable, barwin, gc, 0, 0, barpos[2], BARH, 0, 0);
@@ -792,24 +821,25 @@ void focus(Client *c) {
 	   the stack. */
 	if ((!c || !ISVISIBLE(c)) && (!(c = sel) || !ISVISIBLE(sel)))
 		for (c = clients; c && !ISVISIBLE(c); c = c->next);
-	if (sel && sel != c) {
+	/* unfocus the previously selected window */
+	if (sel && sel != c)
+		XSetWindowBorder(dpy, sel->win, cols[sel == pinned ? mark : bdr].pixel);
+	/* focus on the new window */
+	sel = c;
+	if (sel) {
 		/* catch the Click-to-Raise that could be coming */
 		XGrabButton(dpy, AnyButton, AnyModifier, sel->win, False,
 			ButtonPressMask, GrabModeSync, GrabModeSync, None, None);
-		/* unfocus */
-		XSetWindowBorder(dpy, sel->win, cols[sel == pinned ? mark : bdr].pixel);
+		/* set the window color */
+		XSetWindowBorder(dpy, sel->win, cols[selbdr].pixel);
 	}
-	sel = c;
-	/* focus on the new selected window */
-	if (c)
-		XSetWindowBorder(dpy, c->win, cols[selbdr].pixel);
-	if (c && !barfocus) {
-		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-		PROPSET(root, NetActiveWindow, XA_WINDOW, 32, &c->win, 1);
-		sendevent(c, xatom[WMTakeFocus]);
+	if (sel && !barfocus) {
+		XSetInputFocus(dpy, sel->win, RevertToPointerRoot, CurrentTime);
+		PROPSET(root, NetActiveWindow, XA_WINDOW, 32, &sel->win, 1);
+		sendevent(sel, xatom[WMTakeFocus]);
 	} else {
-		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
-		XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
+		XSetInputFocus(dpy, barwin, RevertToPointerRoot, CurrentTime);
+		XDeleteProperty(dpy, barwin, xatom[NetActiveWindow]);
 	}
 	/* Refresh the stack in case the bar should now be shown */
 	restack(NULL, CliNone);
@@ -897,7 +927,7 @@ void motion() {
 	/* raise the bar when trigger key is held down during mouse move */
 	XQueryKeymap(dpy, keystate);
 	restack(NULL, (keystate[KCODE(barshow)/8] & (1 << (KCODE(barshow)%8)))
-		? CliBarShow : CliBarHide);
+		|| barcmds ? BarShow : BarHide);
 
 	/* focus follows client window under mouse (cached for speed) */
 	if (cw != lastcw && (c = wintoclient(cw)) && c != sel)
@@ -1031,12 +1061,13 @@ void updatestatus(void) {
 void buttonpress(XEvent *e) {
 	unsigned int i;
 	int x = 0, click;
+	char ***spawner, cmd[LENCMD];
 	Client *c;
 	Arg arg = {0};
 	XButtonPressedEvent *ev = &e->xbutton;
 
 	/* click actions for the bar */
-	if (ev->window == barwin) {
+	if (ev->window == barwin && !barcmds) {
 		/* check for click on one of the tags (workspaces)  */
 		for (i = 0; i < tagslen && ev->x > (x += TEXTW(tags[i])); i++);
 		click = i >= tagslen ? ClkStatus : tagset & 1 << i ? ClkSelTag : ClkTagBar;
@@ -1047,16 +1078,35 @@ void buttonpress(XEvent *e) {
 		for (i = 0; i < buttonslen; i++)
 			if (click == buttons[i].click && buttons[i].button == ev->button)
 				buttons[i].func(arg.ui ? &arg : &buttons[i].arg);
-	}
-	/* click on window border */
-	else if (sel && ctrlmode == WinEdge)
-		grabresize(&(Arg){.i = MOVEZONE(sel, ev->x, ev->y) ? DragMove : DragSize});
-	/* click-to-focus */
-	else if ((c = wintoclient(ev->window))) {
-		XAllowEvents(dpy, ReplayPointer, CurrentTime);
-		XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
-		focus(c);
-		restack(c, c->isfloating ? CliZoom : CliRaise);
+	} else if (ev->window == barwin && barcmds) {
+		/* click actions for the launcher */
+		strcpy(cmd, cmdfilter);
+		x = TEXTW(cmdfilter);
+		for (i = cmdi; ev->x > x && i < NUMCMDS && cmds[i][0]; i++)
+			if (!CMDCMP(i)) {
+				x += TEXTW(cmds[i]);
+				strcpy(cmd, cmds[i]);
+			}
+		/* trim trailing spaces */
+		for (;strlen(cmd) && cmd[strlen(cmd)-1] == ' '; cmd[strlen(cmd)-1] = '\0');
+		/* launch the command */
+		spawner = (char***)&(char*[]){cmd, NULL};
+		spawn(&(Arg){.v = &spawner});
+
+
+	} else {
+		/* other click actions */
+		launcher(&(Arg){.i = 0});
+		/* click on window border */
+		if (sel && ctrlmode == WinEdge)
+			grabresize(&(Arg){.i = MOVEZONE(sel, ev->x, ev->y) ?DragMove:DragSize});
+		/* click-to-focus */
+		else if ((c = wintoclient(ev->window))) {
+			XAllowEvents(dpy, ReplayPointer, CurrentTime);
+			XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
+			focus(c);
+			restack(c, c->isfloating ? CliZoom : CliRaise);
+		}
 	}
 }
 
@@ -1177,12 +1227,43 @@ void expose(XEvent *e) {
  * Handle key press events by firing off the
  * relevant action for any matching keyboard
  * shortcuts.
+ * Also handle events for the launcher.
  */
 void keypress(XEvent *e) {
+	char ***spawner, cmd[LENCMD];
+
+	/* handle configured actions */
 	for (int i = 0; i < keyslen; i++)
 		if (e->xkey.keycode == KCODE(keys[i].key)
-		&& KEYMASK(keys[i].mod) == KEYMASK(e->xkey.state))
+		&& KEYMASK(keys[i].mod) == KEYMASK(e->xkey.state)) {
 			keys[i].func(&(keys[i].arg));
+			return;
+		}
+	if (!barcmds)
+		return;
+
+	/* handle launcher input */
+	if (KCODE(XK_Left) == e->xkey.keycode)
+		CMDFIND(cmdi - 1, -1)
+	else if (KCODE(XK_Right) == e->xkey.keycode)
+		CMDFIND(cmdi + 1, +1)
+	else if (KCODE(XK_Return) == e->xkey.keycode) {
+		/* execute the selected command or the command filter itself */
+		strcpy(cmd, !CMDCMP(cmdi) ? cmds[cmdi] : cmdfilter);
+		/* trim trailing spaces */
+		for (;strlen(cmd) && cmd[strlen(cmd)-1] == ' '; cmd[strlen(cmd)-1] = '\0');
+		/* launch the command */
+		spawner = (char***)&(char*[]){cmd, NULL};
+		spawn(&(Arg){.v = &spawner});
+	} else if (KCODE(XK_BackSpace) == e->xkey.keycode) {
+		cmdfilter[MAX(strlen(cmdfilter)-1, 0)] = '\0';
+		CMDFIND(0, +1)
+	} else {
+		KCHAR(&e->xkey, &cmdfilter[strlen(cmdfilter)], LENCMD-strlen(cmdfilter)-1);
+		CMDFIND(0, +1)
+	}
+	/* redraw the bar commands or close launchr */
+	launcher(&(Arg){.i = (KCODE(XK_Escape) != e->xkey.keycode)});
 }
 
 
@@ -1247,6 +1328,7 @@ void maprequest(XEvent *e) {
 	restack(c, CliRaise);
 	XMapWindow(dpy, c->win);
 	focus(c);
+	launcher(&(Arg){.i = 0});
 }
 
 
@@ -1381,6 +1463,22 @@ void killclient(const Arg *arg) {
 		XKillClient(dpy, c->win);
 }
 
+/**
+ * Switch the bar into launcher mode for
+ * selecting commands to launch.
+ * @arg: contains i parameter identifying whether to show
+ *       or hide the launcher.
+ */
+void launcher(const Arg *arg) {
+	barcmds = arg->i;
+	drawbar();
+	if (!barcmds) {
+		cmdfilter[0] = '\0';
+		cmdi = 0;
+	}
+	restack(NULL, barcmds ? BarShow : BarHide);
+}
+
 
 /**
  * Switch pinned state for the selected window.
@@ -1407,6 +1505,7 @@ void quit(const Arg *arg) {
  *       the command and arguments to launch.
  */
 void spawn(const Arg *arg) {
+	printf("--%s--\n", (*(char***)arg->v)[0]);
 	if (fork() != 0)
 		return;
 	close(ConnectionNumber(dpy));
@@ -1520,11 +1619,25 @@ void zoom(const Arg *arg) {
  * ready for the event loop.
  */
 void setup(void) {
-	int screen, xre;
+	int screen, xre, pathlen = strlen(getenv("PATH")), i = 0;
 	unsigned char xi[XIMaskLen(XI_LASTEVENT)] = {0};
 	XIEventMask evm;
 	Atom utf8string;
 	void (*conf)(void);
+	DIR *dir;
+	struct dirent *f;
+
+	/* populate the cmds array with all the commands from
+	   the PATH environment variable */
+	for (char *path = strtok(getenv("PATH"),":"); path; path = strtok(NULL,":")) {
+		for (dir = opendir(path); ((f = readdir(dir)) && i < NUMCMDS);)
+			if (f->d_name[0] != '.')
+				strncpy(cmds[i++], f->d_name, LENCMD-1);
+		closedir(dir);
+	}
+	/* restore the PATH environment variable to its original state */
+	for (i = 0; i < pathlen; i++)
+		getenv("PATH")[i] = getenv("PATH")[i] == '\0' ? ':' : getenv("PATH")[i];
 
 	if (!(dpy = XOpenDisplay(NULL)))
 		DIE("filetwm: cannot open display.\n");
@@ -1604,13 +1717,13 @@ void setup(void) {
 		CWOverrideRedirect|CWBackPixmap|CWEventMask, &(XSetWindowAttributes){
 			.override_redirect = True,
 			.background_pixmap = ParentRelative,
-			.event_mask = ButtonPressMask|ExposureMask});
+			.event_mask = ButtonPressMask|ExposureMask|KeyPressMask});
 	XMapRaised(dpy, barwin);
 	XSetClassHint(dpy, barwin, &(XClassHint){"filetwm", "filetwm"});
 	updatestatus();
 	/* select events */
 	XSelectInput(dpy, root, SubstructureRedirectMask|SubstructureNotifyMask
-		|ButtonPressMask|StructureNotifyMask|PropertyChangeMask);
+		|ButtonPressMask|KeyPressMask|StructureNotifyMask|PropertyChangeMask);
 	/* prepare motion capture */
 	motion();
 	/* select xinput events */
