@@ -1,6 +1,7 @@
 # *filetwm* - Filet-Lignux's Window Manager
 
-![](filetwm-demo.gif)
+![](filetwm-demo.gif)[^1]
+[^1]: gif shows configuration with dmenu, not the inbuilt launcher
 
 filetwm is a minimalist window manager for X. It manages windows in tiled and floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
@@ -15,6 +16,8 @@ Windows have thin borders and indicate the focus state with a highlight color.
 
 The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and sizing movements.
 
+It comes with a simple launcher included within the staus bar. This has a similar interface to dmenu, but is much simpler. The launcher finds commands from the PATH, shown in the order they are found from the PATH components. Favorite commands should be put at the top of the PATH, in a directory with a desired listing order. Custom launchers can also be included.
+
 See the https://github.com/fuglaro/filet-lignux project for the full filet-lignux desktop environment.
 
 ## Configuration
@@ -25,19 +28,16 @@ Customise filetwm by making a '.so' file plugin and installing it to one of file
 * User config: `~/.config/filetwmconf.so`
 * System config: `/etc/config/filetwmconf.so`
 
-Here is an example config that changes the font size and customises the launcher command:
+Here is an example config that changes the bar font size:
 ```c
 /* filetwmconf.c: Source config file for filetwm's config plugin.
 Build and install config with:
 cc -shared -fPIC filetwmconf.c -o ~/.config/filetwmconf.so
 */
-#include <unistd.h>
 #define S(T, N, V) extern T N; N = V;
-#define P(T, N, ...) extern T* N;static T _##N[]=__VA_ARGS__;N=_##N
 
 void config(void) {
-    S(char*, font, "monospace:size=7");
-    P(char*, launcher, { "launcher", "monospace:size=7", "#dddddd", "#111111", "#335577", NULL });
+    S(char*, font, "monospace:size=6");
 }
 ```
 Save it as `filetwmconf.c`, then install it to the user config location using the command found in the comment.
@@ -77,6 +77,7 @@ Significant changes:
 * Support for more familiar Alt+Tab behavior (restack on release).
 * Bar raises with mouse move and a held key.
 * Clicking on the currently selected workspace opens launcher.
+* Inbuilt simple launcher included.
 * Support for pinning windows.
 * More easily customise with post-compile configuration plugins.
 * A whole tonne less code.
@@ -95,7 +96,7 @@ make
 ```
 
 ## Dependencies
-dmenu_run, amixer, xsetroot, bash, slock, awk, systemctl (suspend), xbacklight, man, st
+amixer, xsetroot, bash, slock, awk, systemctl (suspend), xbacklight, man, st
 
 These dependencies can be changed with a configuration plugin.
 
@@ -180,7 +181,7 @@ void config(void) {
     P(int, nmain, {4, 1, 4}); /* number of clients in main area (for each monitor) */
 
   /* commands */
-    P(char*, launcher, { "dmenu_run", "-fn", "size=10", "-b", "-nf", "#ddffdd", "-sf", "#ddffdd", "-nb", "#335533", "-sb", "#338877", NULL });
+    RP(char*, launch, { "dmenu_run", "-fn", "size=10", "-b", "-nf", "#ddffdd", "-sf", "#ddffdd", "-nb", "#335533", "-sb", "#338877", NULL });
     P(char*, terminal, { "xterm", NULL });
     P(char*, upvol, { "amixer", "-q", "set", "Master", "10%+", NULL });
     P(char*, downvol, { "amixer", "-q", "set", "Master", "10%-", NULL });
@@ -202,7 +203,7 @@ void config(void) {
     S(KeySym, stackrelease, XK_Alt_L);
     A(Key, keys, {
     /*               modifier / key, function / argument */
-    {               WinMask, XK_Tab, spawn, {.v = &launcher } },
+    {               WinMask, XK_Tab, spawn, {.v = &launch } },
     {     WinMask|ShiftMask, XK_Tab, spawn, {.v = &terminal } },
     {             WinMask, XK_space, grabresize, {.i = DragMove } },
     {     WinMask|AltMask, XK_space, grabresize, {.i = DragSize } },
@@ -235,7 +236,7 @@ void config(void) {
   /* bar actions */
   A(Button, buttons, {
     /* click,      button, function / argument */
-    { ClkStatus,   Button1, spawn, {.v = &launcher } },
+    { ClkStatus,   Button1, spawn, {.v = &launch } },
     { ClkStatus,   Button2, spawn, {.v = &terminal } },
     { ClkStatus,   Button3, spawn, {.v = &help } },
     { ClkTagBar,   Button1, view, {0} },
@@ -246,7 +247,8 @@ void config(void) {
 
 # TODO
 
-* inbuilt launcher - update documentation and readmes, config docs (respects PATH order)
+* inbuilt launcher - update documentation
+* update gif with inbuilt launcher
 * Further cleanup like server grabbing, or xsync etc.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
 * Clearer easier setup of filetwm on its own. - e.g: setup instructions that make the help page work. helps with st install, man page install. etc.
