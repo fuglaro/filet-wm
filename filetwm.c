@@ -490,7 +490,6 @@ void resize(Client *c, int x, int y, int w, int h) {
 		wc.border_width = c->bw;
 		XConfigureWindow(dpy, c->win, CWX|CWY|CWWidth|CWHeight|CWBorderWidth, &wc);
 		configure(c);
-		XSync(dpy, False);
 	}
 }
 
@@ -1758,7 +1757,6 @@ int main(int argc, char *argv[]) {
 	setup();
 
 	/* main event loop */
-	XSync(dpy, False);
 	while (!end && !XNextEvent(dpy, &ev))
 		if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
@@ -1779,7 +1777,6 @@ int main(int argc, char *argv[]) {
 	XFreePixmap(dpy, drawable);
 	XFreeGC(dpy, gc);
 	XftDrawDestroy(drawablexft);
-	XSync(dpy, True);
 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 	XDeleteProperty(dpy, root, xatom[NetActiveWindow]);
 	XCloseDisplay(dpy);
