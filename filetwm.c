@@ -289,21 +289,23 @@ void defaultconfig(void) {
 	P(int, nmain, {1});
 
 	/* commands */
-	P(char*, terminal, { "st", NULL });
-	P(char*, help, { "st", "-e", "bash", "-c",
-		"man filetwm || man -l ~/.config/filetwmconf.1", NULL });
+	#define CMD(C) "sh", "-c", C, NULL
+	#define TERM(C) CMD("alacritty "#C"||st "#C"||urxvt "#C"||xterm "#C"||"\
+		"xsetroot -name \"need: alacritty/st/urxvt/xterm\"")
+	P(char*, terminal, {TERM()});
+	P(char*, help, {TERM(-e sh -c "man -l ~/.config/filetwmconf.1 || \
+		man filetwm || man -l $(dirname $FILETWM)/filetwm.1")});
 	#define VOLCMD(A) ("amixer -q set Master "#A"; xsetroot -name \"Volume: "\
 		"$(amixer sget Master | grep -m1 '%]' | "\
-		"sed -e 's/[^\\[]*\\[\\([0-9]*%\\)[^\\[]*\\[\\([onf]*\\).*/\\1 \\2/')\"")
-	P(char*, upvol, { "bash", "-c", VOLCMD("5%+"), NULL });
-	P(char*, downvol, { "bash", "-c", VOLCMD("5%-"), NULL });
-	P(char*, mutevol, { "bash", "-c", VOLCMD("toggle"), NULL });
-	P(char*, suspend, {
-		"bash", "-c", "killall slock; slock systemctl suspend -i", NULL });
+		"sed -e 's/[^\\[]*\\[\\([0-9]*%\\).*\\[\\([onf]*\\).*/\\1 \\2/')\"")
+	P(char*, upvol, {CMD(VOLCMD("5%+"))});
+	P(char*, downvol, {CMD(VOLCMD("5%-"))});
+	P(char*, mutevol, {CMD(VOLCMD("toggle"))});
+	P(char*, suspend, {CMD("killall slock; slock systemctl suspend -i")});
 	#define DIMCMD(A) ("xbacklight "#A" 5; xsetroot -name \"Brightness: "\
 		"$(xbacklight | cut -d. -f1)%\"")
-	P(char*, dimup, { "bash", "-c", DIMCMD("-inc"), NULL });
-	P(char*, dimdown, { "bash", "-c", DIMCMD("-dec"), NULL });
+	P(char*, dimup, {CMD(DIMCMD("-inc"))});
+	P(char*, dimdown, {CMD(DIMCMD("-dec"))});
 
 	/* keyboard shortcut definitions */
 	#define AltMask Mod1Mask
@@ -1616,6 +1618,7 @@ void zoom(const Arg *arg) {
 void setup(void) {
 	int screen, xre, pathlen = strlen(getenv("PATH")), i = 0;
 	unsigned char xi[XIMaskLen(XI_LASTEVENT)] = {0};
+	char execpath[4096] = {0};
 	XIEventMask evm;
 	Atom utf8string;
 	void (*conf)(void);
@@ -1633,6 +1636,11 @@ void setup(void) {
 	/* restore the PATH environment variable to its original state */
 	for (i = 0; i < pathlen; i++)
 		getenv("PATH")[i] = getenv("PATH")[i] == '\0' ? ':' : getenv("PATH")[i];
+
+/* set the FILETWM environment variable to the path of this
+	   executable so launched commands can refer to it's location */
+	i = readlink("/proc/self/exe", execpath, 4096);
+	if (i < 4096) setenv("FILETWM", execpath, 0);
 
 	if (!(dpy = XOpenDisplay(NULL)))
 		DIE("filetwm: cannot open display.\n");
