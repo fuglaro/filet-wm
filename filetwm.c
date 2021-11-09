@@ -522,8 +522,7 @@ void restack(Client *c, int mode) {
 		break;
 	case BarHide:
 	case BarShow:
-		if (barfocus == (mode == BarShow))
-			return;
+		if (barfocus == (mode == BarShow)) return;
 		barfocus = mode == BarShow;
 		focus(sel);
 		break;
@@ -624,8 +623,7 @@ void updatesizehints(Client *c) {
 
 	c->basew = c->baseh = c->maxw = c->maxh = c->minw = c->minh = 0;
 	c->maxa = c->mina = 0.0;
-	if (!XGetWMNormalHints(dpy, c->win, &size, &msize))
-		return;
+	if (!XGetWMNormalHints(dpy, c->win, &size, &msize)) return;
 
 	if (size.flags & PBaseSize) {
 		c->basew = c->minw = size.base_width;
@@ -872,8 +870,7 @@ void grabkeys(XEvent *e) {
 void grabresizeabort() {
 	int m;
 
-	if (ctrlmode == CtrlNone || ctrlmode == ZoomStack)
-		return;
+	if (ctrlmode == CtrlNone || ctrlmode == ZoomStack) return;
 
 	/* update the monitor layout to match any tiling changes */
 	if (sel && ctrlmode == DragTile) {
@@ -906,8 +903,7 @@ void motion() {
 	static Client *c = NULL;
 
 	/* capture pointer and motion details */
-	if (!MOUSEINF(cw, rx, ry, mask))
-		return;
+	if (!MOUSEINF(cw, rx, ry, mask)) return;
 	x = rx - lx; lx = rx;
 	y = ry - ly; ly = ry;
 
@@ -921,8 +917,7 @@ void motion() {
 	if (ctrlmode == WinEdge &&
 		(!sel || (!MOVEZONE(sel, rx, ry) && !RESIZEZONE(sel, rx, ry))))
 		grabresizeabort();
-	if (ctrlmode != CtrlNone)
-		return;
+	if (ctrlmode != CtrlNone) return;
 
 	/* raise the bar when trigger key is held down during mouse move */
 	XQueryKeymap(dpy, keystate);
@@ -1237,8 +1232,7 @@ void keypress(XEvent *e) {
 			keys[i].func(&(keys[i].arg));
 			return;
 		}
-	if (!barcmds)
-		return;
+	if (!barcmds) return;
 
 	/* handle launcher input */
 	if (KCODE(XK_Left) == e->xkey.keycode)
@@ -1280,8 +1274,7 @@ void maprequest(XEvent *e) {
 	XMapRequestEvent *ev = &e->xmaprequest;
 
 	if (!XGetWindowAttributes(dpy, ev->window, &wa) || wa.override_redirect
-	|| wintoclient(ev->window))
-		return;
+	|| wintoclient(ev->window)) return;
 
 	/* manage the window by registering it as a new client */
 	if (!(c = calloc(1, sizeof(Client))))
@@ -1345,8 +1338,7 @@ void propertynotify(XEvent *e) {
 	if ((ev->window == root) && (ev->atom == XA_WM_NAME))
 		updatestatus();
 	/* ignore PropertyDelete or messages to unmanaged windows  */
-	if (ev->state == PropertyDelete || !(c = wintoclient(ev->window)))
-		return;
+	if (ev->state == PropertyDelete || !(c = wintoclient(ev->window))) return;
 	/* update size hints for later respecting during resizing */
 	if (ev->atom == XA_WM_NORMAL_HINTS)
 		updatesizehints(c);
@@ -1381,8 +1373,7 @@ void unmapnotify(XEvent *e) {
 void focusstack(const Arg *arg) {
 	Client *c = NULL, *i;
 
-	if (!sel)
-		return;
+	if (!sel) return;
 	if (arg->i > 0) {
 		for (c = sel->next; c && !ISVISIBLE(c); c = c->next);
 		if (!c)
@@ -1417,8 +1408,7 @@ void focusstack(const Arg *arg) {
  */
 void grabresize(const Arg *arg) {
 	/* abort if already in the desired mode */
-	if (ctrlmode == arg->i)
-		return;
+	if (ctrlmode == arg->i) return;
 	/* only grab if there is a selected window,
 	   no support moving fullscreen or repositioning tiled windows. */
 	if (!sel || sel->isfullscreen || (arg->i == DragMove && !sel->isfloating))
@@ -1503,8 +1493,7 @@ void quit(const Arg *arg) {
  *       the command and arguments to launch.
  */
 void spawn(const Arg *arg) {
-	if (fork() != 0)
-		return;
+	if (fork() != 0) return;
 	close(ConnectionNumber(dpy));
 	setsid();
 	execvp((*(char***)arg->v)[0], *(char ***)arg->v);
