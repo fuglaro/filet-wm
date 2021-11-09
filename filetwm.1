@@ -59,7 +59,8 @@ Windows have thin borders and indicate the focus state with a highlight color.
 .SH USAGE
 The primary control interface is intended to be via the keyboard shortcuts
 detailed above, along with mouse control for window focus, click-to-raise,
-and all sizing movements, but additional mouse controls are supported:
+using the inbuilt launcher, and all sizing movements, but additional mouse
+controls are supported:
 
 .RS
 .TS
@@ -75,6 +76,11 @@ Left Click Top/Left Win-Edge:@move window
 Left Click Bottom/Right Win-Edge:@resize window
 .TE
 .RE
+
+.SS Inbuilt launcher
+The inbuilt launcher will show a list of commands. Typing will filter the
+command list, left and right arrows will select from the listed commands,
+enter will launch the selected command, and escape will exit the launcher.
 
 
 .SH CUSTOMIZATION
@@ -102,12 +108,11 @@ It can be set with the
 .BR xsetroot (1)
 command.
 
+.SS Inbuilt launcher
+The inbuilt launcher finds commands from the PATH environment variable.
+Commands are listed in the order they are found, from each entry in PATH,
+and in the directory listing order within each entry. Favorites should
+be ordered as desired in a directory at the top of the PATH.
+
 .SH SYNOPSIS
 .B filetwm
-.RB [ \-v ]
-
-.SH OPTIONS
-.TP
-.B \-v
-prints version information to stderr, then exits.
-
