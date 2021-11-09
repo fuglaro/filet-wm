@@ -253,7 +253,6 @@ void config(void) {
 * Clearer easier setup of filetwm on its own. - e.g: setup instructions that make the help page work. helps with st install, man page install. etc.
 * Search through common terminals. In case it isn't installed.
 * Also find the man page alongside the executable.
-* flatten if returns - its clearer
 
 # Thanks to, grateful forks, and contributions
 
