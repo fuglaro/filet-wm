@@ -186,7 +186,7 @@ static void focus(Client *c);
 
 /* variables */
 static char cmds[NUMCMDS][LENCMD], cmdfilter[LENCMD] = {'\0'}, stxt[256] = {
-	'F','i','l','e','t','L','i','g','n','u','x','\0',[255]='\0'};
+	'f','i','l','e','t','-','w','m','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
 static Window barwin;        /* the bar */
 static int barfocus, barcmds, cmdi; /* bar status (force raised, in launcher) */
