@@ -46,6 +46,12 @@ Many other configurations can be made via this plugin system and supported optio
 
 If you change the behaviours around documented things, like keyboard shortcuts, you can update the Help action by creating a custom man page at `~/.config/filetwmconf.1`.
 
+### Background image
+To custimise a background image, you must apply a background to the root window. This can be done with a startup script or after launching. E.g:
+```bash
+feh --bg-tile ~/.config/background.jpg
+```
+
 ### Status bar text
 To configure the status text on the bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
 
@@ -249,7 +255,6 @@ void config(void) {
 
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
-* Document / make easier to do background image.
 * Incorporate filet-status.
 * Simplify slock dependency.
 

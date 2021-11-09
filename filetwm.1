@@ -102,6 +102,11 @@ void config() { extern char *font; font = "monospace:bold:size=5"; }
 
 See https://github.com/fuglaro/filet-wm#Configuration for further details.
 
+.SS Background image
+To custimise a background image, you must apply a background to the root
+window. This can be done with a startup script or after launching. E.g:
+.B feh --bg-tile ~/.config/background.jpg
+
 .SS Status bar
 The status bar can be updated by changing the window name of the X root window.
 It can be set with the
