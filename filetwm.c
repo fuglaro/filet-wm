@@ -507,6 +507,8 @@ void resize(Client *c, int x, int y, int w, int h) {
  */
 void restack(Client *c, int mode) {
 	static Client *raised = NULL;
+	int barup, i = 0;
+	Window topstack[4] = {0};
 	XWindowChanges wc;
 
 	switch (mode) {
@@ -542,31 +544,37 @@ void restack(Client *c, int mode) {
 	}
 
 	/* start window stacking */
-	/* show windows that sit above the standard layers */
 	/* bar window is above all when bar is focused,
-	   or under selected pinned or selected raised window */
+	   or under selected pinned or selected raised window.
+	   pinned window is always above raised. */
 	XDeleteProperty(dpy, root, xatom[NetCliStack]);
-	XRaiseWindow(dpy, (wc.sibling = barwin));
-	XRaiseWindow(dpy, raised ? raised->win : -1);
-	XRaiseWindow(dpy, pinned ? pinned->win : -1);
-	if (barfocus || (pinned != sel && raised != sel)) {
-		XRaiseWindow(dpy, barwin);
-		wc.sibling = raised || pinned || barwin;
-	}
-	if (raised)
-		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
-	if (pinned)
+	barup = barfocus || (pinned != sel && raised != sel);
+	if (barup) topstack[i++] = barwin;
+	if (pinned) {
+		topstack[i++] = pinned->win;
 		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
-
-	/* show all other windows in the standard layers */
+	}
+	if (raised) {
+		topstack[i++] = raised->win;
+		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
+	}
+	if (!barup) topstack[i++] = barwin;
+	XRaiseWindow(dpy, (wc.sibling = topstack[0]));
 	wc.stack_mode = Below;
+	for (i = 1; i < 4 && topstack[i]; i++) {
+		XConfigureWindow(dpy, topstack[i], CWSibling|CWStackMode, &wc);
+		wc.sibling = topstack[i];
+	}
+
+	/* show windows in the standard layers */
 	/* order layers - floating then tiled then fullscreen (if not raised) */
-	for (int layer = 0; layer < 3; layer++) /* 0=floating 1=tiled 2=fullscreen */
+	/* 0=floating 1=tiled 2=fullscreen */
+	for (int l = 0; l < 3; l++)
 		for (c = clients; c; c = c->next)
-			if (c!=pinned && c!=raised && !c->isfloating+c->isfullscreen == layer) {
+			if (c != pinned && c != raised && !c->isfloating+2*c->isfullscreen == l) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
-				wc.sibling = c->win;
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
+				wc.sibling = c->win;
 			}
 }
 
@@ -1474,6 +1482,7 @@ void launcher(const Arg *arg) {
  * all other windows including selected windows.
  */
 void pin(const Arg *arg) {
+	if (pinned) XSetWindowBorder(dpy, pinned->win, cols[bdr].pixel);
 	restack(sel, CliPin);
 }
 
