@@ -1,7 +1,7 @@
 # *filetwm* - Filet-Lignux's Window Manager
 
 ![](filetwm-demo.gif)[^1]
-[^1]: gif shows configuration with dmenu, not the inbuilt launcher, and the status message is configured with filetstatus from filet-lignux.
+[^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the *filetstatus* status message, and background, from filet-lignux.
 
 filetwm is a minimalist window manager for X. It manages windows in tiled and floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
