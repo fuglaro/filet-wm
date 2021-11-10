@@ -1636,7 +1636,7 @@ void setup(void) {
 	for (i = 0; i < pathlen; i++)
 		getenv("PATH")[i] = getenv("PATH")[i] == '\0' ? ':' : getenv("PATH")[i];
 
-/* set the FILETWM environment variable to the path of this
+	/* set the FILETWM environment variable to the path of this
 	   executable so launched commands can refer to it's location */
 	i = readlink("/proc/self/exe", execpath, 4096);
 	if (i < 4096) setenv("FILETWM", execpath, 0);
