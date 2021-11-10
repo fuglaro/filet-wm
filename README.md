@@ -102,7 +102,7 @@ make
 ```
 
 ## Dependencies
-amixer, xsetroot, bash, slock, awk, systemctl (suspend), xbacklight, man, st
+alacritty/st/urxvt/xterm (one of), sh (e.g: bash), xsetroot, man, xbacklight, amixer, grep, sed, slock, killall, systemctl
 
 These dependencies can be changed with a configuration plugin.
 
@@ -257,6 +257,7 @@ void config(void) {
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
 * Incorporate filet-status.
 * Simplify slock dependency.
+* The killall for slock could take out slock on other displays for the same user.
 
 # Thanks to, grateful forks, and contributions
 
