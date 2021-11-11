@@ -309,7 +309,7 @@ void defaultconfig(void) {
 	P(char*, dimup, {CMD(DIMCMD("-inc"))});
 	P(char*, dimdown, {CMD(DIMCMD("-dec"))});
 	/* the startup command is run when filetwm opens */
-	P(char*, startup, {CMD("$(dirname $FILETWM)/filetstatus")});
+	P(char*, startup, {CMD(TRY(filetstatus,)"$(dirname $FILETWM)/filetstatus")});
 
 	/* keyboard shortcut definitions */
 	#define AltMask Mod1Mask
