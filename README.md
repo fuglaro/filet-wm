@@ -95,7 +95,7 @@ These dependencies can be changed with a custom configuration plugin.
 There are a number of ways to launch a Window Manager (https://wiki.archlinux.org/index.php/Xinit), all of which apply to filetwm. A simple way is to switch to a virtual console and then launch filetwm with:
 
 ```bash
-startx filetwm
+startx ./filetwm
 ```
 
 ## Advanced config example
