@@ -246,7 +246,7 @@ static Window dwin;
 
 /* configurable values (see defaultconfig) */
 Monitor *mons;
-char *font, **colors, **tags, **terminal, **upvol,
+char *font, **colors, **tags, **startup, **terminal, **upvol,
 	**downvol, **mutevol, **suspend, **dimup, **dimdown, **help;
 int borderpx, snap, tagslen, monslen, *nmain, keyslen, buttonslen;
 int *barpos;
@@ -308,6 +308,8 @@ void defaultconfig(void) {
 		"$(xbacklight | cut -d. -f1)%\"")
 	P(char*, dimup, {CMD(DIMCMD("-inc"))});
 	P(char*, dimdown, {CMD(DIMCMD("-dec"))});
+	/* the startup command is run when filetwm opens */
+	P(char*, startup, {CMD("$(dirname $FILETWM)/filetstatus")});
 
 	/* keyboard shortcut definitions */
 	#define AltMask Mod1Mask
@@ -1743,6 +1745,9 @@ void setup(void) {
 	}
 	grabkeys(NULL);
 	focus(NULL);
+
+	/* launch the configured startup command */
+	spawn(&(Arg){.v = &startup});
 }
 
 

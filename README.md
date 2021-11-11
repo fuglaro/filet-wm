@@ -1,7 +1,7 @@
 # *filetwm* - Filet-Lignux's Window Manager
 
 ![](filetwm-demo.gif)[^1]
-[^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the *filetstatus* status message, and background, from filet-lignux.
+[^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the background, and terminal color scheme from filet-lignux.
 
 filetwm is a minimalist window manager for X. It manages windows in tiled and floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
@@ -53,7 +53,7 @@ feh --bg-tile ~/.config/background.jpg
 ```
 
 ### Status bar text
-To configure the status text on the bar, set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. Check out `filetstatus` from the https://github.com/fuglaro/filet-lignux project for a solution engineered under the same philosophies as this project.
+To configure the status text on the bar, you need to set the name of the Root Window with a tool like `xsetroot`. There are many examples configured for other Window Managers that respect a similar interface. The default configuration comes with an inbuilt status bar text updater called *filetstatus* which is launched in the configured startup command. See *startup* in the config section.
 
 ## Design and Engineering Philosophies
 
@@ -263,7 +263,6 @@ void config(void) {
 
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
-* Incorporate filet-status.
 
 # Thanks to, grateful forks, and contributions
 
