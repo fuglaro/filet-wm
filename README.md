@@ -102,9 +102,17 @@ make
 ```
 
 ## Dependencies
-alacritty/st/urxvt/xterm (one of), sh (e.g: bash), xsetroot, man, xbacklight, amixer, grep, sed, slock, killall, systemctl
 
-These dependencies can be changed with a configuration plugin.
+The default configuration expects these executables to be installed:
+* sh (e.g: bash)
+* man
+* either alacritty/st/urxvt/xterm
+* xsetroot
+* xbacklight (for brightness control)
+* amixer, grep, sed (for volume control)
+* systemctl and either slock/i3lock (for lock&suspend)
+
+These dependencies can be changed with a custom configuration plugin.
 
 ## Running
 
@@ -256,10 +264,6 @@ void config(void) {
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
 * Incorporate filet-status.
-* Simplify slock dependency.
-* The killall for slock could take out slock on other displays for the same user. Avoid opening multiple instances with: pgrep -x slock -s0 -u$(id -u). Try fallback ones: i3lock->slock
-slock sleepcmd
-i3lock && sleepcmd
 
 # Thanks to, grateful forks, and contributions
 

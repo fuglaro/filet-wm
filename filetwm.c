@@ -302,7 +302,8 @@ void defaultconfig(void) {
 	P(char*, upvol, {CMD(VOLCMD("5%+"))});
 	P(char*, downvol, {CMD(VOLCMD("5%-"))});
 	P(char*, mutevol, {CMD(VOLCMD("toggle"))});
-	P(char*, suspend, {CMD("killall slock; slock systemctl suspend -i")});
+	P(char*, suspend, {CMD(TRY(slock,systemctl suspend -i)TRY(i3lock,\
+		&& systemctl suspend -i)"xsetroot -name \"need: slock/i3lock\"")});
 	#define DIMCMD(A) ("xbacklight "#A" 5; xsetroot -name \"Brightness: "\
 		"$(xbacklight | cut -d. -f1)%\"")
 	P(char*, dimup, {CMD(DIMCMD("-inc"))});
