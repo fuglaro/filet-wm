@@ -79,7 +79,7 @@ make
 
 ## Dependencies
 
-The default configuration expects these executables to be installed:
+The default configuration expects these commands to be installed:
 * sh (e.g: bash)
 * man
 * either alacritty/st/urxvt/xterm
