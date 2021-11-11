@@ -69,30 +69,6 @@ This project explores how far a software product can be pushed in terms of simpl
 * Fix where fixes belong - don't work around bugs in other applications, contribute to them, or make something better.
 * Improvement via reduction is sometimes what a project desperately needs, because we do so tend to just add. (https://www.theregister.com/2021/04/09/people_complicate_things/)
 
-
-## DWM fork
-
-The heart of this project is a fork of dwm. This started as a programming exercise to aggressively simplify a codebase already highly respected for its simplicity. It ended up making some significant user experience changes, largely from the opinions stated above. I would best describe it now as dwm with a cleaner, simpler, and more approachable user interface, whilst still holding on to powerful features.
-
-Significant changes:
-* Configurable after compilation (needed for distro packaging).
-* Unified tiling, fullscreen and floating modes.
-* Simpler monitor support - unified stack and workspaces.
-* Focus follows mouse and clicks raise.
-* Mouse support for window movement, resizing, and tile layout adjustment.
-* Support for more familiar Alt+Tab behavior (restack on release).
-* Bar raises with mouse move and a held key.
-* Clicking on the currently selected workspace opens launcher.
-* Inbuilt simple launcher included.
-* Support for pinning windows.
-* More easily customise with post-compile configuration plugins.
-* A whole tonne less code.
-
-## X11 vs Wayland
-
-This is built on X11, not Wayland, for no other reason than timing. Shortly after this project was started, NVIDIA support for Wayland was announced. This project will not include Wayland support due to the inevitable complexities of concurrently supporting multiple interfaces. When the timing is right, this will fork into a new project which can move in the direction of Wayland.
-It is worth considering a Rust implementation when this happens.
-
 ## Building
 
 In order to build dwm you need the Xlib header files.
@@ -264,6 +240,29 @@ void config(void) {
   });
 }
 ```
+
+## DWM fork
+
+The heart of this project is a fork of dwm. This started as a programming exercise to aggressively simplify a codebase already highly respected for its simplicity. It ended up making some significant user experience changes, largely from the opinions stated above. I would best describe it now as dwm with a cleaner, simpler, and more approachable user interface, whilst still holding on to powerful features.
+
+Significant changes:
+* Configurable after compilation (needed for distro packaging).
+* Unified tiling, fullscreen and floating modes.
+* Simpler monitor support - unified stack and workspaces.
+* Focus follows mouse and clicks raise.
+* Mouse support for window movement, resizing, and tile layout adjustment.
+* Support for more familiar Alt+Tab behavior (restack on release).
+* Bar raises with mouse move and a held key.
+* Clicking on the currently selected workspace opens launcher.
+* Inbuilt simple launcher included.
+* Support for pinning windows.
+* More easily customise with post-compile configuration plugins.
+* A whole tonne less code.
+
+## X11 vs Wayland
+
+This is built on X11, not Wayland, for no other reason than timing. Shortly after this project was started, NVIDIA support for Wayland was announced. This project will not include Wayland support due to the inevitable complexities of concurrently supporting multiple interfaces. When the timing is right, this will fork into a new project which can move in the direction of Wayland.
+It is worth considering a Rust implementation when this happens.
 
 # TODO
 
