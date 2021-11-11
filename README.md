@@ -206,6 +206,12 @@ void config(void) {
     P(char*, help, { "xterm", "-e", "bash", "-c", "man filetwm || man -l ~/.config/filetwmconf.1", NULL });
     /* new declaration doesn't override an existing value but is injected via inclusion when overriding keys */
     RP(char*, poweroff, {"bash", "-c", "sudo poweroff", NULL });
+    /* The startup command is run when filetwm opens.
+       Please check the defaults in the code when overiding
+       this as this is used to launch things like the default
+       status bar text updater. This example clears that behaviour
+       in case you want to manage your own status bar updater. */
+    P(char*, startup, { "true", NULL };
 
     /* keyboard shortcut definitions */
     #define AltMask Mod1Mask
