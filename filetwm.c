@@ -290,7 +290,8 @@ void defaultconfig(void) {
 
 	/* commands */
 	#define CMD(C) "sh", "-c", C, NULL
-	#define TERM(C) CMD("alacritty "#C"||st "#C"||urxvt "#C"||xterm "#C"||"\
+	#define TRY(C,A) "(command -v "#C" && ("#C" "#A"||true))||"
+	#define TERM(A) CMD(TRY(alacritty,A)TRY(st,A)TRY(urxvt,A)TRY(xterm,A)\
 		"xsetroot -name \"need: alacritty/st/urxvt/xterm\"")
 	P(char*, terminal, {TERM()});
 	P(char*, help, {TERM(-e sh -c "man -l ~/.config/filetwmconf.1 || \
