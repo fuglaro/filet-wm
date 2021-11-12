@@ -268,7 +268,7 @@ It is worth considering a Rust implementation when this happens.
 
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor):
- - The tiling layout is arranged into columns.
+ ** The tiling layout is arranged into columns.
  - Adding a window to the tiling layer will create a new column that takes up half the width of the last column.
  - Each column can contain multiple windows arranged vertically.
  - The width of the column can be adjusted by resizing the top window of the column.
