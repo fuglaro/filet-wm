@@ -268,6 +268,7 @@ It is worth considering a Rust implementation when this happens.
 
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor): tilecolumn - arrary of fraction sizes, mintileheight - tiled windows are shrunk to fit all windows at this fraction of monitor height, tileheights - when room left, the min heights (in fractions), of sizable windows in the tiled arrangement. Any number of sizable windows allowed but dynamically respecting mintileheight.
+ - column leaders with position drag
 * full without float. Call float free. Full screen free.
 * Remember raised across work spacers.
 * Alt.shift + Tab comes back and existing shortcut stack lifts through same layer. 
