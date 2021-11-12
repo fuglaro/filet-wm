@@ -16,7 +16,7 @@ Windows have thin borders and indicate the focus state with a highlight color.
 
 The primary control interface is intended to be via configurable keyboard shortcuts (see the help by clicking the status pane), along with mouse control for window focus, click-to-raise, and sizing movements.
 
-It comes with a simple launcher included within the staus bar. This has a similar interface to dmenu, but is much simpler. The launcher finds commands from the PATH, shown in the order they are found from the PATH components. Favorite commands should be put at the top of the PATH, in a directory with a desired listing order. Custom launchers can also be included.
+It comes with a simple launcher included within the status bar. This has a similar interface to dmenu, but is much simpler. The launcher finds commands from the PATH, shown in the order they are found from the PATH components. Favorite commands should be put at the top of the PATH, in a directory with a desired listing order. Custom launchers can also be included.
 
 See the https://github.com/fuglaro/filet-lignux project for the full filet-lignux desktop environment.
 
