@@ -268,15 +268,15 @@ It is worth considering a Rust implementation when this happens.
 
 * update gif with inbuilt launcher, and pinned border color.
 * More controllable tiling layouts (per monitor):
- ** The tiling layout is arranged into columns.
- - Adding a window to the tiling layer will create a new column that takes up half the width of the last column.
- - Each column can contain multiple windows arranged vertically.
- - The width of the column can be adjusted by resizing the top window of the column.
- - The height of each window in a column can adjusted by window resizing.
- - The final columns of the monitor, and the final windows of each column, may be shrunk to a minimum size to fit the monitor area.
- - Repositioning windows will move them between columns, or reorder them within columns.
- - Columns will collapse of they no longer contain a window.
- - Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
+  * The tiling layout is arranged into columns.
+  * Adding a window to the tiling layer will create a new column that takes up half the width of the last column.
+  * Each column can contain multiple windows arranged vertically.
+  * The width of the column can be adjusted by resizing the top window of the column.
+  * The height of each window in a column can adjusted by window resizing.
+  * The final columns of the monitor, and the final windows of each column, may be shrunk to a minimum size to fit the monitor area.
+  * Repositioning windows will move them between columns, or reorder them within columns.
+  * Columns will collapse of they no longer contain a window.
+  * Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
 * full without float. Call float free. Full screen free. fx,fy,fw,fh just becomes "intended" size.
 * Remember raised across work spacers.
 * Alt.shift + Tab comes back and existing shortcut stack lifts through same layer. 
