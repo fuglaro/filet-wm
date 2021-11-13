@@ -118,8 +118,7 @@ typedef union {
 
 /* bar click action */
 typedef struct {
-	unsigned int click;
-	unsigned int button;
+	unsigned int click, button;
 	void (*func)(const Arg *arg);
 	const Arg arg;
 } Button;
@@ -128,10 +127,9 @@ typedef struct {
 typedef struct Client Client;
 struct Client {
 	float mina, maxa;
-	int x, y, w, h;
-	int fx, fy, fw, fh; /*remember during tiled and fullscreen states */
-	int basew, baseh, maxw, maxh, minw, minh, bw, fbw;
-	int isfloating, fstate, isfullscreen;
+	int x, y, w, h; /* actual positon and size */
+	int fx, fy, fw, fh; /* desired position and size */
+	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, free, full;
 	unsigned int tags;
 	Client *next;
 	Window win;
@@ -449,7 +447,7 @@ void resize(Client *c, int x, int y, int w, int h) {
 	x = MAX(1 - w - 2*c->bw, MIN(sw - 1, x));
 	y = MAX(1 - h - 2*c->bw, MIN(sh - 1, y));
 
-	if (c->isfloating && !c->isfullscreen) {
+	if (c->free && !c->full) {
 		c->fx = x;
 		c->fy = y;
 		c->fw = w;
@@ -471,7 +469,7 @@ void resize(Client *c, int x, int y, int w, int h) {
 	/* see last two sentences in ICCCM 4.1.2.3 */
 	w -= c->basew;
 	h -= c->baseh;
-	if (c->mina > 0 && c->maxa > 0 && !c->isfullscreen) {
+	if (c->mina > 0 && c->maxa > 0 && !c->full) {
 		if (c->maxa < (float)w / h)
 			w = h * c->maxa + 0.5;
 		else if (c->mina < (float)h / w)
@@ -481,8 +479,8 @@ void resize(Client *c, int x, int y, int w, int h) {
 	/* restore base dimensions and apply max and min dimensions */
 	w = MAX(w + c->basew, c->minw);
 	h = MAX(h + c->baseh, c->minh);
-	w = (c->maxw && !c->isfullscreen) ? MIN(w, c->maxw) : w;
-	h = (c->maxh && !c->isfullscreen) ? MIN(h, c->maxh) : h;
+	w = (c->maxw && !c->full) ? MIN(w, c->maxw) : w;
+	h = (c->maxh && !c->full) ? MIN(h, c->maxh) : h;
 
 	/* apply the resize if anything ended up changing */
 	if (x != c->x || y != c->y || w != c->w || h != c->h) {
@@ -542,11 +540,6 @@ void restack(Client *c, int mode) {
 	case CliRaise:
 		raised = c;
 	}
-	/* always lift up anything pinned */
-	if (pinned && pinned->isfloating) {
-		detach(pinned);
-		attach(pinned);
-	}
 
 	/* start window stacking */
 	/* bar window is above all when bar is focused,
@@ -576,7 +569,7 @@ void restack(Client *c, int mode) {
 	/* 0=floating 1=tiled 2=fullscreen */
 	for (int l = 0; l < 3; l++)
 		for (c = clients; c; c = c->next)
-			if (c != pinned && c != raised && !c->isfloating+2*c->isfullscreen == l) {
+			if (c != pinned && c != raised && !(c->free||c->full)+2*c->full == l) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
 				wc.sibling = c->win;
@@ -723,14 +716,14 @@ void arrange(void) {
 
 	/* find the number of tiled clients in each monitor */
 	for (c = clients; c; c = c->next)
-		if (!c->isfloating && ISVISIBLE(c)) {
+		if (!(c->free||c->full) && ISVISIBLE(c)) {
 			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
 			nm[m]++;
 		}
 
 	/* arrange tiled windows into the relevant monitors. */
 	for (c = clients; c; c = c->next)
-		if (!c->isfloating && ISVISIBLE(c)) {
+		if (!(c->free||c->full) && ISVISIBLE(c)) {
 			/* find the monitor placement again */
 			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
 			/* tile the client within the relevant monitor */
@@ -958,13 +951,11 @@ void motion() {
  */
 void setfullscreen(Client *c, int fullscreen) {
 	int w, h, m1, m2;
-	if (fullscreen && !c->isfullscreen) {
+	if (fullscreen && !c->full) {
 		PROPSET(c->win, NetWMState, XA_ATOM, 32, &xatom[NetWMFullscreen], 1);
-		c->isfullscreen = 1;
-		c->fstate = c->isfloating;
+		c->full = 1;
 		c->fbw = c->bw;
 		c->bw = 0;
-		c->isfloating = 1;
 		/* find the full screen spread across the monitors */
 		for (m1 = monslen-1; m1 > 0 && !INMON(c->x, c->y, mons[m1]); m1--);
 		for (m2 = 0; m2 < monslen
@@ -976,13 +967,11 @@ void setfullscreen(Client *c, int fullscreen) {
 		w = mons[m2].mx - mons[m1].mx + mons[m2].mw;
 		h = mons[m2].my - mons[m1].my + mons[m2].mh;
 		resize(c, mons[m1].mx, mons[m1].my, w, h);
-		restack(c, CliZoom);
 
-	} else if (!fullscreen && c->isfullscreen){
+	} else if (!fullscreen && c->full){
 		/* change back to original floating parameters */
 		PROPSET(c->win, NetWMState, XA_ATOM, 32, 0, 0);
-		c->isfullscreen = 0;
-		c->isfloating = c->fstate;
+		c->full = 0;
 		c->bw = c->fbw;
 		resize(c, c->fx, c->fy, c->fw, c->fh);
 	}
@@ -1111,7 +1100,7 @@ void buttonpress(XEvent *e) {
 			XAllowEvents(dpy, ReplayPointer, CurrentTime);
 			XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
 			focus(c);
-			restack(c, c->isfloating ? CliZoom : CliRaise);
+			restack(c, c->free ? CliZoom : CliRaise);
 		}
 	}
 }
@@ -1129,7 +1118,7 @@ void clientmessage(XEvent *e) {
 		|| e->xclient.data.l[2] == xatom[NetWMFullscreen]))
 		/* 1=_NET_WM_STATE_ADD, 2=_NET_WM_STATE_TOGGLE */
 		setfullscreen(c, (e->xclient.data.l[0] == 1
-			|| (e->xclient.data.l[0] == 2 && !c->isfullscreen)));
+			|| (e->xclient.data.l[0] == 2 && !c->full)));
 }
 
 
@@ -1161,7 +1150,7 @@ void configurerequest(XEvent *e) {
 		if (ev->value_mask & CWStackMode)
 			wc.stack_mode = ev->detail;
 		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
-	} else if (c->isfloating && ISVISIBLE(c))
+	} else if ((c->free||c->full) && ISVISIBLE(c))
 		/* allow resizing of managed floating windows in active workspaces */
 		resize(c, ev->x, ev->y, ev->width, ev->height);
 }
@@ -1294,7 +1283,7 @@ void maprequest(XEvent *e) {
 		DIE("calloc failed.\n");
 	attach(c);
 	c->win = ev->window;
-	c->isfloating = 1;
+	c->free = 1;
 	c->tags = tagset;
 	/* geometry */
 	c->fx = wa.x;
@@ -1424,13 +1413,12 @@ void grabresize(const Arg *arg) {
 	if (ctrlmode == arg->i) return;
 	/* only grab if there is a selected window,
 	   no support moving fullscreen or repositioning tiled windows. */
-	if (!sel || sel->isfullscreen || (arg->i == DragMove && !sel->isfloating))
-		return;
+	if (!sel || sel->full || (arg->i == DragMove && !sel->free)) return;
 
 	/* set the drag mode so future motion applies to the action */
 	ctrlmode = arg->i;
 	/* detect if we should be dragging the tiled layout */
-	if (ctrlmode == DragSize && !sel->isfloating)
+	if (ctrlmode == DragSize && !sel->free)
 		ctrlmode = DragTile;
 	/* grab pointer and show resize cursor */
 	XGrabPointer(dpy, root, True, ButtonPressMask,
@@ -1487,7 +1475,9 @@ void launcher(const Arg *arg) {
  * all other windows including selected windows.
  */
 void pin(const Arg *arg) {
-	if (pinned) XSetWindowBorder(dpy, pinned->win, cols[bdr].pixel);
+	/* clear the border color of the previously pinned window */
+	if (pinned && pinned != sel)
+		XSetWindowBorder(dpy, pinned->win, cols[bdr].pixel);
 	restack(sel, CliPin);
 }
 
@@ -1532,9 +1522,10 @@ void tag(const Arg *arg) {
  * Switch floating/tiled states for the selected window.
  */
 void togglefloating(const Arg *arg) {
-	if (sel && sel->isfullscreen)
-		setfullscreen(sel, 0);
-	if (sel && (sel->isfloating = !sel->isfloating))
+	int wasfull = 0;
+
+	if (sel && (wasfull = sel->full)) setfullscreen(sel, 0);
+	if (sel && (sel->free = !(sel->free||wasfull)))
 		resize(sel, sel->fx, sel->fy, sel->fw, sel->fh);
 	arrange();
 }
@@ -1544,8 +1535,7 @@ void togglefloating(const Arg *arg) {
  * Switch fullcreen state for the selected window.
  */
 void togglefullscreen(const Arg *arg) {
-	if (sel)
-		setfullscreen(sel, !sel->isfullscreen);
+	if (sel) setfullscreen(sel, !sel->full);
 }
 
 

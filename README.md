@@ -3,7 +3,7 @@
 ![](filetwm-demo.gif)[^1]
 [^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the background, and terminal color scheme from filet-lignux.
 
-filetwm is a minimalist window manager for X. It manages windows in tiled and floating layers, across virtual workspaces, with support for fullscreen and
+filetwm is a minimalist window manager for X. It manages windows in tiled and free floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
 
 All windows start out floating and can be switched between the tiled layer on demand. In the tiled layer, windows are managed in two columns. The left column is the primary area and contains one window by default, while the right column is the stacking area and contains all other windows. The number of primary area windows can be adjusted to an arbitrary number, along with the primary column size, by resizing any window in the tile layer. In the floating layer, windows can be resized and moved freely.
