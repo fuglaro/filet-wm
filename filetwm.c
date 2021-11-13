@@ -127,8 +127,8 @@ typedef struct {
 typedef struct Client Client;
 struct Client {
 	float mina, maxa;
-	int x, y, w, h; /* actual positon and size */
-	int fx, fy, fw, fh; /* desired position and size */
+	/* actual, and intended (f*) positon and size */
+	int x, y, w, h, fx, fy, fw, fh;
 	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, free, full;
 	unsigned int tags;
 	Client *next;

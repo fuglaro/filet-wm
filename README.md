@@ -278,8 +278,8 @@ It is worth considering a Rust implementation when this happens.
   * Repositioning windows will move them between columns, or reorder them within columns.
   * Columns will collapse of they no longer contain a window.
   * Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
-* full without float. Call float free. Full screen free. fx,fy,fw,fh just becomes "intended" size.
-* Remember raised across work spacers.
+  * -code- fx,fy,fw,fh just becomes "intended" size.
+* Remember raised across workspaces.
 * Alt.shift + Tab comes back and existing shortcut stack lifts through same layer. 
 
 # Thanks to, grateful forks, and contributions
