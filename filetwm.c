@@ -1619,9 +1619,9 @@ void zoom(const Arg *arg) {
  * ready for the event loop.
  */
 void setup(void) {
-	int screen, xre, pathlen = strlen(getenv("PATH")), i = 0;
+	int screen, xre, i, j = 0, s;
 	unsigned char xi[XIMaskLen(XI_LASTEVENT)] = {0};
-	char execpath[4096] = {0};
+	char tmppath[4096] = {0};
 	XIEventMask evm;
 	Atom utf8string;
 	void (*conf)(void);
@@ -1630,20 +1630,20 @@ void setup(void) {
 
 	/* populate the cmds array with all the commands from
 	   the PATH environment variable */
-	for (char *path = strtok(getenv("PATH"),":"); path; path = strtok(NULL,":")) {
-		for (dir = opendir(path); ((f = readdir(dir)) && i < NUMCMDS);)
+	for (i = 0; i < strlen(getenv("PATH")); i += s + 1) {
+		if ((s = strcspn(&getenv("PATH")[i], ":\0")) > 4096 - 1) continue;
+		strncpy(tmppath, &getenv("PATH")[i], s);
+		tmppath[s] = '\0';
+		for (dir = opendir(tmppath); dir && ((f = readdir(dir)) && j < NUMCMDS);)
 			if (f->d_name[0] != '.')
-				strncpy(cmds[i++], f->d_name, LENCMD-1);
-		closedir(dir);
+				strncpy(cmds[j++], f->d_name, LENCMD-1);
+		if (dir) closedir(dir);
 	}
-	/* restore the PATH environment variable to its original state */
-	for (i = 0; i < pathlen; i++)
-		getenv("PATH")[i] = getenv("PATH")[i] == '\0' ? ':' : getenv("PATH")[i];
 
 	/* set the FILETWM environment variable to the path of this
 	   executable so launched commands can refer to it's location */
-	i = readlink("/proc/self/exe", execpath, 4096);
-	if (i < 4096) setenv("FILETWM", execpath, 0);
+	i = readlink("/proc/self/exe", tmppath, 4096);
+	if (i < 4096) setenv("FILETWM", tmppath, 0);
 
 	if (!(dpy = XOpenDisplay(NULL)))
 		DIE("filetwm: cannot open display.\n");
