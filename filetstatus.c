@@ -30,7 +30,7 @@
 
 /* load file to buffer - no fault handling, only use on /proc/ files */
 #define GET(F) if(access(F, F_OK) != -1) { f=open(F, O_RDONLY);\
-	r=read(f, buf, 4999*sizeof(char)); buf[r/sizeof(char)] = '\0'; close(f) }
+	r=read(f, buf, 4999*sizeof(char)); buf[r/sizeof(char)] = '\0'; close(f); }
 /* search the buffer to after a string */
 #define SEEK(V, buf) ((b = strstr(buf, V)) ? b += strlen(V) : NULL)
 /* retrieve a 'long' from the buffer after a string */
