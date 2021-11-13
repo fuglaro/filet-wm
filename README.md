@@ -146,6 +146,7 @@ void focusstack(const Arg *arg);
 void grabresize(const Arg *arg);
 void grabstack(const Arg *arg);
 void killclient(const Arg *arg);
+void launcher(const Arg *arg);
 void pin(const Arg *arg);
 void quit(const Arg *arg);
 void spawn(const Arg *arg);
