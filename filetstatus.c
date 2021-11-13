@@ -83,7 +83,7 @@ main(int argc, char *argv[])
 
 		/* battery levels */
 		GET("/sys/class/power_supply/BAT0/capacity");
-		if (!r) GET("/sys/class/power_supply/bms/capacity");
+		if (f<0) GET("/sys/class/power_supply/bms/capacity");
 		bat = L("");
 
 		/* time */
