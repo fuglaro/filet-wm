@@ -29,7 +29,7 @@
 #include <X11/Xlib.h>
 
 /* load file to buffer - no fault handling, only use on /proc/ files */
-#define f=open(F, O_RDONLY);\
+#define GET f=open(F, O_RDONLY);\
 	r=read(f, buf, 4999*sizeof(char)); buf[r/sizeof(char)] = '\0'; close(f)
 /* search the buffer to after a string */
 #define SEEK(V, buf) ((b = strstr(buf, V)) ? b += strlen(V) : NULL)
