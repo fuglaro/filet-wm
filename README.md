@@ -279,6 +279,7 @@ It is worth considering a Rust implementation when this happens.
   * Columns will collapse of they no longer contain a window.
   * Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
   * -code- fx,fy,fw,fh just becomes "intended" size.
+* Invert free to tile then remove line that sets it on manage?
 * Remember raised across workspaces.
 * Alt.shift + Tab comes back and existing shortcut stack lifts through same layer. 
 
