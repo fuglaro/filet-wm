@@ -166,7 +166,7 @@ void config(void) {
     S(int, bar, 0); /* 0 means bottom bar */
     S(char*, font, "size=10");
     P(char*, colors, { "#ddffdd", "#335533", "#338877", "#558855", "#dd6622" }); /* colors (must be five colors: fg, bg, highlight, border, sel-border) */
-    A(char*, tags, { "[ ]", "[ ]", "[ ]", "[ ]"}); /* virtual workspaces (must be 32 or less, *usually*) */
+    A(char*, tags, { "[ ]", "[ ]", "[ ]", "[ ]"}); /* virtual workspaces (must be 32 or less) */
     A(Monitor, mons, {{0}, {0}, {0}});
     P(float, mfact, {0.5, 0.75, 0.5}); /* factor of main area size [0.05..0.95] (for each monitor) */
     P(int, nmain, {4, 1, 4}); /* number of clients in main area (for each monitor) */
@@ -279,8 +279,7 @@ It is worth considering a Rust implementation when this happens.
   * Columns will collapse of they no longer contain a window.
   * Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
   * -code- fx,fy,fw,fh just becomes "intended" size.
-* Remember raised across workspaces.
-* Alt.shift + Tab behaviour comes back as Win.shift + Backspace, and existing shortcut stack lifts through same layer.
+* Alt.shift + Tab behaviour comes back as Win.shift + Tab, and existing shortcut stack lifts through same layer. This leaves the Launcher shortcut moving to Win+Esc, and Terminal launcher being Win+Alt+Esc.
 * Incorporate basic power off command so all keyboard shortcuts don't need recreating for one plus, just the ones edited.
 
 # Thanks to, grateful forks, and contributions

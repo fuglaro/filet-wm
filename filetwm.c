@@ -187,7 +187,7 @@ static char cmds[NUMCMDS][LENCMD], cmdfilter[LENCMD] = {'\0'}, stxt[256] = {
 	'f','i','l','e','t','-','w','m','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
 static Window barwin;        /* the bar */
-static int barfocus, barcmds, cmdi; /* bar status (force raised, in launcher) */
+static int barfocus, barcmds, cmdi; /* bar status (force show / in launcher) */
 static int ctrlmode = CtrlNone; /* mouse mode (resize/repos/arrange/etc) */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int tagset = 1; /* mask for which workspaces are displayed */
@@ -261,7 +261,7 @@ void defaultconfig(void) {
 	/* colors (must be five colors: fg, bg, highlight, border, sel-border) */
 	P(char*, colors, { "#dddddd", "#111111", "#335577", "#555555", "#dd4422" });
 
-	/* virtual workspaces (must be 32 or less, *usually*) */
+	/* virtual workspaces (must be 32 or less) */
 	A(char*, tags, { "1", "2", "3", "4", "5", "6", "7", "8", "9" });
 
 	/* monitor layout
@@ -509,10 +509,14 @@ void resize(Client *c, int x, int y, int w, int h) {
  *  - BarHide: Drop bar to its normal stack order (c ignored).
  */
 void restack(Client *c, int mode) {
-	static Client *raised = NULL;
+	static Client *allraised[32] = {0}; /* raised window over all workspaces */
+	Client **raised = &allraised[0];
 	int barup, i = 0;
 	Window topstack[4] = {0};
 	XWindowChanges wc;
+
+	/* find the raised window container of the first active workspace */
+	for (int j = 0; j < tagslen && tagset&1<<j; j++) raised = &allraised[j];
 
 	switch (mode) {
 	case CliPin:
@@ -522,7 +526,7 @@ void restack(Client *c, int mode) {
 	case CliRemove:
 		detach(c);
 		pinned = pinned != c ? pinned : NULL;
-		raised = raised != c ? raised : NULL;
+		*raised = *raised != c ? *raised : NULL;
 		sel = sel != c ? sel : NULL;
 		break;
 	case BarHide:
@@ -538,7 +542,7 @@ void restack(Client *c, int mode) {
 		}
 		/* fall through to CliRaise */
 	case CliRaise:
-		raised = c;
+		*raised = c;
 	}
 
 	/* start window stacking */
@@ -546,15 +550,15 @@ void restack(Client *c, int mode) {
 	   or under selected pinned or selected raised window.
 	   pinned window is always above raised. */
 	XDeleteProperty(dpy, root, xatom[NetCliStack]);
-	barup = barfocus || (pinned != sel && raised != sel);
+	barup = barfocus || (pinned != sel && *raised != sel);
 	if (barup) topstack[i++] = barwin;
 	if (pinned) {
 		topstack[i++] = pinned->win;
 		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &pinned->win, 1);
 	}
-	if (raised) {
-		topstack[i++] = raised->win;
-		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &raised->win, 1);
+	if (*raised) {
+		topstack[i++] = (*raised)->win;
+		PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &(*raised)->win, 1);
 	}
 	if (!barup) topstack[i++] = barwin;
 	XRaiseWindow(dpy, (wc.sibling = topstack[0]));
@@ -569,7 +573,7 @@ void restack(Client *c, int mode) {
 	/* 0=floating 1=tiled 2=fullscreen */
 	for (int l = 0; l < 3; l++)
 		for (c = clients; c; c = c->next)
-			if (c != pinned && c != raised && (c->tile&&!c->full)+2*c->full == l) {
+			if (c != pinned && c != *raised && (c->tile&&!c->full)+2*c->full == l) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
 				wc.sibling = c->win;
@@ -1173,7 +1177,7 @@ void destroynotify(XEvent *e) {
  * and monitor changes.
  * This does not handle the keyboard shorcuts, but rather
  * the additional keyboard related functionaltily:
- *  - barshow (show bar raised when held down),
+ *  - barshow (show bar when held down),
  *  - stackrelease (reorder window stack on key release)
  *  - ending resize or move actions on any key release.
  * See the keyproess function for keyboard shortcut handling.
@@ -1431,7 +1435,7 @@ void grabresize(const Arg *arg) {
 /**
  * Start cycling the selection through the windows in such
  * a way that when the stackrelease key is released,
- * the resulting selected window is raised to the top
+ * the resulting selected window is lifted to the top
  * of the stack.
  * @arg: contains i parameter identifying the direction
  *       to cycle (positive -> next, negative -> previous)
