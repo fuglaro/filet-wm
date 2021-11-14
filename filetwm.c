@@ -129,7 +129,7 @@ struct Client {
 	float mina, maxa;
 	/* actual, and intended (f*) positon and size */
 	int x, y, w, h, fx, fy, fw, fh;
-	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, free, full;
+	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, tile, full;
 	unsigned int tags;
 	Client *next;
 	Window win;
@@ -447,7 +447,7 @@ void resize(Client *c, int x, int y, int w, int h) {
 	x = MAX(1 - w - 2*c->bw, MIN(sw - 1, x));
 	y = MAX(1 - h - 2*c->bw, MIN(sh - 1, y));
 
-	if (c->free && !c->full) {
+	if (!c->tile && !c->full) {
 		c->fx = x;
 		c->fy = y;
 		c->fw = w;
@@ -569,7 +569,7 @@ void restack(Client *c, int mode) {
 	/* 0=floating 1=tiled 2=fullscreen */
 	for (int l = 0; l < 3; l++)
 		for (c = clients; c; c = c->next)
-			if (c != pinned && c != raised && !(c->free||c->full)+2*c->full == l) {
+			if (c != pinned && c != raised && (c->tile&&!c->full)+2*c->full == l) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
 				wc.sibling = c->win;
@@ -716,14 +716,14 @@ void arrange(void) {
 
 	/* find the number of tiled clients in each monitor */
 	for (c = clients; c; c = c->next)
-		if (!(c->free||c->full) && ISVISIBLE(c)) {
+		if (c->tile && !c->full && ISVISIBLE(c)) {
 			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
 			nm[m]++;
 		}
 
 	/* arrange tiled windows into the relevant monitors. */
 	for (c = clients; c; c = c->next)
-		if (!(c->free||c->full) && ISVISIBLE(c)) {
+		if (c->tile && !c->full && ISVISIBLE(c)) {
 			/* find the monitor placement again */
 			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
 			/* tile the client within the relevant monitor */
@@ -1100,7 +1100,7 @@ void buttonpress(XEvent *e) {
 			XAllowEvents(dpy, ReplayPointer, CurrentTime);
 			XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
 			focus(c);
-			restack(c, c->free ? CliZoom : CliRaise);
+			restack(c, c->tile ? CliRaise : CliZoom);
 		}
 	}
 }
@@ -1150,7 +1150,7 @@ void configurerequest(XEvent *e) {
 		if (ev->value_mask & CWStackMode)
 			wc.stack_mode = ev->detail;
 		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
-	} else if ((c->free||c->full) && ISVISIBLE(c))
+	} else if (!c->tile && !c->full && ISVISIBLE(c))
 		/* allow resizing of managed floating windows in active workspaces */
 		resize(c, ev->x, ev->y, ev->width, ev->height);
 }
@@ -1283,7 +1283,6 @@ void maprequest(XEvent *e) {
 		DIE("calloc failed.\n");
 	attach(c);
 	c->win = ev->window;
-	c->free = 1;
 	c->tags = tagset;
 	/* geometry */
 	c->fx = wa.x;
@@ -1413,12 +1412,12 @@ void grabresize(const Arg *arg) {
 	if (ctrlmode == arg->i) return;
 	/* only grab if there is a selected window,
 	   no support moving fullscreen or repositioning tiled windows. */
-	if (!sel || sel->full || (arg->i == DragMove && !sel->free)) return;
+	if (!sel || sel->full || (arg->i == DragMove && sel->tile)) return;
 
 	/* set the drag mode so future motion applies to the action */
 	ctrlmode = arg->i;
 	/* detect if we should be dragging the tiled layout */
-	if (ctrlmode == DragSize && !sel->free)
+	if (ctrlmode == DragSize && sel->tile)
 		ctrlmode = DragTile;
 	/* grab pointer and show resize cursor */
 	XGrabPointer(dpy, root, True, ButtonPressMask,
@@ -1525,7 +1524,7 @@ void togglefloating(const Arg *arg) {
 	int wasfull = 0;
 
 	if (sel && (wasfull = sel->full)) setfullscreen(sel, 0);
-	if (sel && (sel->free = !(sel->free||wasfull)))
+	if (sel && !(sel->tile = !sel->tile || wasfull))
 		resize(sel, sel->fx, sel->fy, sel->fw, sel->fh);
 	arrange();
 }
