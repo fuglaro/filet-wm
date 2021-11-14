@@ -267,7 +267,7 @@ It is worth considering a Rust implementation when this happens.
 
 # TODO
 
-* update gif with inbuilt launcher, and pinned border color.
+* update gif with inbuilt launcher, and pinned border color, alacritty?.
 * More controllable tiling layouts (per monitor):
   * The tiling layout is arranged into columns.
   * Adding a window to the tiling layer will create a new column that takes up half the width of the last column.
