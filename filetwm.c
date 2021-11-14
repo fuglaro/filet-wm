@@ -1621,6 +1621,7 @@ void setup(void) {
 	/* populate the cmds array with all the commands from
 	   the PATH environment variable */
 	for (i = 0; i < strlen(getenv("PATH")); i += s + 1) {
+		/* skip paths that are too long (4096 characters) */
 		if ((s = strcspn(&getenv("PATH")[i], ":\0")) > 4096 - 1) continue;
 		strncpy(tmppath, &getenv("PATH")[i], s);
 		tmppath[s] = '\0';
