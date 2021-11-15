@@ -159,6 +159,8 @@ void viewshift(const Arg *arg);
 void viewtagshift(const Arg *arg);
 void zoom(const Arg *arg);
 
+char **launch;
+
 void config(void) {
     /* appearance */
     S(int, borderpx, 5); /* border pixel width of windows */
@@ -172,6 +174,7 @@ void config(void) {
     P(int, nmain, {4, 1, 4}); /* number of clients in main area (for each monitor) */
 
   /* commands */
+    /* new declaration doesn't override an existing value but is injected via inclusion when overriding keys */
     RP(char*, launch, { "dmenu_run", "-fn", "size=10", "-b", "-nf", "#ddffdd", "-sf", "#ddffdd", "-nb", "#335533", "-sb", "#338877", NULL });
     P(char*, terminal, { "xterm", NULL });
     P(char*, upvol, { "amixer", "-q", "set", "Master", "10%+", NULL });
@@ -181,8 +184,7 @@ void config(void) {
     P(char*, dimup, { "xbacklight", "-inc", "5", NULL });
     P(char*, dimdown, { "xbacklight", "-dec", "5", NULL });
     P(char*, help, { "xterm", "-e", "bash", "-c", "man filetwm || man -l ~/.config/filetwmconf.1", NULL });
-    /* new declaration doesn't override an existing value but is injected via inclusion when overriding keys */
-    RP(char*, poweroff, {"bash", "-c", "sudo poweroff", NULL });
+    P(char*, poweroff, {"bash", "-c", "sudo poweroff", NULL });
     /* The startup command is run when filetwm opens.
        Please check the defaults in the code when overiding
        this as this is used to launch things like the default
