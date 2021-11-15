@@ -244,8 +244,8 @@ static Window dwin;
 
 /* configurable values (see defaultconfig) */
 Monitor *mons;
-char *font, **colors, **tags, **startup, **terminal, **upvol,
-	**downvol, **mutevol, **suspend, **dimup, **dimdown, **help;
+char *font, **colors, **tags, **startup, **terminal, **upvol, **downvol,
+	**mutevol, **suspend, **poweroff, **dimup, **dimdown, **help;
 int borderpx, snap, tagslen, monslen, *nmain, keyslen, buttonslen;
 int *barpos;
 float *mfact;
@@ -300,8 +300,10 @@ void defaultconfig(void) {
 	P(char*, upvol, {CMD(VOLCMD("5%+"))});
 	P(char*, downvol, {CMD(VOLCMD("5%-"))});
 	P(char*, mutevol, {CMD(VOLCMD("toggle"))});
-	P(char*, suspend, {CMD(TRY(slock,systemctl suspend -i)TRY(i3lock,\
-		&& systemctl suspend -i)"xsetroot -name \"need: slock/i3lock\"")});
+	#define LOCKCMD(C) CMD(TRY(slock,C)TRY(i3lock, && C)\
+		"xsetroot -name \"need: slock/i3lock\"")
+	P(char*, suspend, {LOCKCMD(systemctl suspend -i)});
+	P(char*, poweroff, {LOCKCMD(systemctl poweroff -i)});
 	#define DIMCMD(A) ("xbacklight "#A" 5; xsetroot -name \"Brightness: "\
 		"$(xbacklight | cut -d. -f1)%\"")
 	P(char*, dimup, {CMD(DIMCMD("-inc"))});
@@ -345,6 +347,7 @@ void defaultconfig(void) {
 		{           0, XF86XK_AudioMute, spawn, {.v = &mutevol } },
 		{    0, XF86XK_AudioRaiseVolume, spawn, {.v = &upvol } },
 		{               0, XF86XK_Sleep, spawn, {.v = &suspend } },
+		{            0, XF86XK_PowerOff, spawn, {.v = &poweroff } },
 		{     0, XF86XK_MonBrightnessUp, spawn, {.v = &dimup } },
 		{   0, XF86XK_MonBrightnessDown, spawn, {.v = &dimdown } },
 		TK(1) TK(2) TK(3) TK(4) TK(5) TK(6) TK(7) TK(8) TK(9)
