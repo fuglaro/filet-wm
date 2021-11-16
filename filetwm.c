@@ -529,7 +529,8 @@ void restack(Client *c, int mode) {
 	case CliRemove:
 		detach(c);
 		pinned = pinned != c ? pinned : NULL;
-		*raised = *raised != c ? *raised : NULL;
+		for (int j = 0; j < tagslen; j++)
+			allraised[j] = allraised[j] != c ? allraised[j] : NULL;
 		sel = sel != c ? sel : NULL;
 		break;
 	case BarHide:
