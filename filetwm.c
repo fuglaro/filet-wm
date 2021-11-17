@@ -1385,16 +1385,12 @@ void focusstack(const Arg *arg) {
 	if (!sel) return;
 	if (arg->i > 0) {
 		for (c = sel->next; c && !ISVISIBLE(c); c = c->next);
-		if (!c)
-			for (c = clients; c && !ISVISIBLE(c); c = c->next);
+		if (!c) for (c = clients; c && !ISVISIBLE(c); c = c->next);
 	} else {
 		for (i = clients; i != sel; i = i->next)
-			if (ISVISIBLE(i))
-				c = i;
-		if (!c)
-			for (; i; i = i->next)
-				if (ISVISIBLE(i))
-					c = i;
+			if (ISVISIBLE(i)) c = i;
+		if (!c) for (; i; i = i->next)
+			if (ISVISIBLE(i)) c = i;
 	}
 	if (c) {
 		focus(c);
