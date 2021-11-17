@@ -283,7 +283,7 @@ It is worth considering a Rust implementation when this happens.
   * -code- fx,fy,fw,fh just becomes "intended" size.
 * Alt.shift + Tab behaviour comes back as Win.shift + Tab, and existing shortcut stack lifts through same layer. This leaves the Launcher shortcut moving to Win+Esc, and Terminal launcher being Win+Alt+Esc.
 * Tile shortcut - Win + backspace
-* After closing a window, next window selection should fall back through the layers, not just the stack.
+* Less frequent mouse drag event actioning.
 
 # Thanks to, grateful forks, and contributions
 

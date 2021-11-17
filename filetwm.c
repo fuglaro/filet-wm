@@ -832,7 +832,11 @@ void focus(Client *c) {
 	   otherwise search for the next visible window in
 	   the stack. */
 	if ((!c || !ISVISIBLE(c)) && (!(c = sel) || !ISVISIBLE(sel)))
-		for (c = clients; c && !ISVISIBLE(c); c = c->next);
+		/* search in layer order - floating then tiled then fullscreen */
+		for (int l = 0; l < 3 && (!c || !ISVISIBLE(c)); l++)
+			for (c = clients; c && ((c->full?2:c->tile?1:0) != l || !ISVISIBLE(c));
+				c = c->next);
+
 	/* unfocus the previously selected window */
 	if (sel && sel != c)
 		XSetWindowBorder(dpy, sel->win, cols[sel == pinned ? mark : bdr].pixel);
