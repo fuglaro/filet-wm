@@ -577,7 +577,7 @@ void restack(Client *c, int mode) {
 	/* 0=floating 1=tiled 2=fullscreen */
 	for (int l = 0; l < 3; l++)
 		for (c = clients; c; c = c->next)
-			if (c != pinned && c != *raised && (c->tile&&!c->full)+2*c->full == l) {
+			if (c != pinned && c != *raised && (c->full?2:c->tile?1:0) == l) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				PROPADD(Prepend, root, NetCliStack, XA_WINDOW, 32, &c->win, 1);
 				wc.sibling = c->win;
