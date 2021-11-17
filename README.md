@@ -272,18 +272,14 @@ It is worth considering a Rust implementation when this happens.
 * update gif with inbuilt launcher, and pinned border color, alacritty?.
 * More controllable tiling layouts (per monitor):
   * The tiling layout is arranged into columns.
-  * Adding a window to the tiling layer will create a new column that takes up half the width of the last column.
-  * Each column can contain multiple windows arranged vertically.
-  * The width of the column can be adjusted by resizing the top window of the column.
+  * Adding a window to the tiling layer will create a new column, half the width of the previous last column. Column widths can be adjusted by resizing the top window of each column.
+  * Moving windows will shift them into different columns, allowing each column to contain multiple windows arranged vertically. Empty columns will collapse.
   * The height of each window in a column can adjusted by window resizing.
   * The final columns of the monitor, and the final windows of each column, may be shrunk to a minimum size to fit the monitor area.
-  * Repositioning windows will move them between columns, or reorder them within columns.
-  * Columns will collapse of they no longer contain a window.
-  * Vertical monitors follow a similar tiling layout but flipped with rows instead of columns.
+  * Vertical monitors follow a similar tiling layout but are flipped with rows instead of columns.
   * -code- fx,fy,fw,fh just becomes "intended" size.
 * Alt.shift + Tab behaviour comes back as Win.shift + Tab, and existing shortcut stack lifts through same layer. This leaves the Launcher shortcut moving to Win+Esc, and Terminal launcher being Win+Alt+Esc.
 * Tile shortcut - Win + backspace
-* Less frequent mouse drag event actioning - PointerMotionHintMask
 
 # Thanks to, grateful forks, and contributions
 

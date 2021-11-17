@@ -209,7 +209,7 @@ static void (*handler[LASTEvent]) (XEvent *) = { /* XEvent callbacks */
 	[UnmapNotify] = unmapnotify,
 };
 static Atom xatom[XAtomLast];     /* holds X types */
-static int end;                   /* end session trigger (quit) */
+static int end, domotion;         /* event loop helpers */
 static Display *dpy;              /* X session display reference */
 static Drawable drawable;         /* canvas for drawing (bar) */
 static XftDraw *drawablexft;      /* font rendering for canvas */
@@ -1193,7 +1193,7 @@ void destroynotify(XEvent *e) {
 void exthandler(XEvent *ev) {
 	switch (ev->xcookie.evtype) {
 	case XI_RawMotion:
-		motion();
+		domotion = 1; /* defer motion processing */
 		return;
 	case XI_RawButtonRelease:
 		grabresizeabort();
@@ -1756,15 +1756,20 @@ void setup(void) {
 int main(int argc, char *argv[]) {
 	XEvent ev;
 
-	if (argc != 1)
-		DIE("usage: filetwm [-v]\n");
+	if (argc != 1) DIE("usage: filetwm [-v]\n");
 
 	setup();
 
 	/* main event loop */
-	while (!end && !XNextEvent(dpy, &ev))
+	while (!end && !XNextEvent(dpy, &ev)) {
 		if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
+		/* wait until the queue isn't busy to do motion processing */
+		if (domotion && !XQLength(dpy)) {
+			motion();
+			domotion = 0;
+		}
+	}
 
 	/* cleanup */
 	view(&(Arg){.ui = ~0});
