@@ -149,15 +149,15 @@ typedef struct {
 typedef struct { int mx, my, mw, mh; } Monitor; /* windowing region size */
 
 /* function declarations callable from config plugins */
-void focusstack(const Arg *arg);
 void grabresize(const Arg *arg);
-void grabstack(const Arg *arg);
 void killclient(const Arg *arg);
 void launcher(const Arg *arg);
 void pin(const Arg *arg);
 void quit(const Arg *arg);
 void spawn(const Arg *arg);
 void tag(const Arg *arg);
+void stackgrab(const Arg *arg);
+void stackshift(const Arg *arg);
 void togglefloating(const Arg *arg);
 void togglefullscreen(const Arg *arg);
 void toggletag(const Arg *arg);
@@ -318,26 +318,28 @@ void defaultconfig(void) {
 	S(KeySym, barshow, XK_Super_L);
 	A(Key, keys, {
 		/*               modifier / key, function / argument */
-		{               WinMask, XK_Tab, launcher, {.i = 1} },
-		{     WinMask|ShiftMask, XK_Tab, spawn, {.v = &terminal } },
-		{             WinMask, XK_space, grabresize, {.i = DragMove } },
-		{     WinMask|AltMask, XK_space, grabresize, {.i = DragSize } },
-		{ WinMask|ControlMask, XK_space, togglefloating, {0} },
+		{            WinMask, XK_Escape, launcher, {.i = 1} },
+		{ WinMask|ControlMask, XK_space, spawn, {.v = &terminal } },
+		{             WinMask, XK_space, grabresize, {.i = DragSize } },
+		{     WinMask|AltMask, XK_space, grabresize, {.i = DragMove } },
+		{         WinMask, XK_BackSpace, togglefloating, {0} },
 		{            WinMask, XK_Return, togglefullscreen, {0} },
 		{    WinMask|AltMask, XK_Return, pin, {0} },
 		{  WinMask|ShiftMask, XK_Return, zoom, {0} },
-		{                WinMask, XK_Up, focusstack, {.i = -1 } },
-		{              WinMask, XK_Down, focusstack, {.i = +1 } },
-		{      WinMask|ShiftMask, XK_Up, grabstack, {.i = +1 } },
-		{    WinMask|ShiftMask, XK_Down, grabstack, {.i = -1 } },
+		{               WinMask, XK_Tab, stackgrab, {.i = +1 } },
+		{     WinMask|ShiftMask, XK_Tab, stackgrab, {.i = -1 } },
+		{                WinMask, XK_Up, stackshift, {.i = -1 } },
+		{              WinMask, XK_Down, stackshift, {.i = +1 } },
+		{      WinMask|ShiftMask, XK_Up, stackshift, {.i = -2 } },
+		{    WinMask|ShiftMask, XK_Down, stackshift, {.i = +2 } },
 		{              WinMask, XK_Left, viewshift, {.i = -1 } },
 		{             WinMask, XK_Right, viewshift, {.i = +1 } },
 		{    WinMask|ShiftMask, XK_Left, viewtagshift, {.i = -1 } },
 		{   WinMask|ShiftMask, XK_Right, viewtagshift, {.i = +1 } },
-		{         WinMask|AltMask, XK_0, tag, {.ui = ~0 } },
+		{                 WinMask, XK_0, tag, {.ui = ~0 } },
+		{ WinMask|ControlMask|ShiftMask, XK_F4, quit, {0} },
 		{                WinMask, XK_F4, killclient, {0} },
 		{      WinMask|ShiftMask, XK_F4, spawn, {.v = &suspend } },
-		{ WinMask|ControlMask|ShiftMask, XK_F4, quit, {0} },
 		{    0, XF86XK_AudioLowerVolume, spawn, {.v = &downvol } },
 		{           0, XF86XK_AudioMute, spawn, {.v = &mutevol } },
 		{    0, XF86XK_AudioRaiseVolume, spawn, {.v = &upvol } },
@@ -1238,6 +1240,7 @@ void destroynotify(XEvent *e) {
 		unmanage(c);
 }
 
+
 /*
  * Handle raw presses, releases, mouse motion events,
  * and monitor changes.
@@ -1269,7 +1272,7 @@ void exthandler(XEvent *ev) {
 			}
 		}
 	case XI_RawButtonRelease:
-		grabresizeabort();
+		if (ctrlmode != ZoomStack) grabresizeabort();
 	}
 }
 
@@ -1435,31 +1438,6 @@ void unmapnotify(XEvent *e) {
 
 
 /**
- * Select the next or previous window in the stack.
- * @arg: contains i parameter identifying the direction
- *       to cycle (positive -> next, negative -> previous)
- */
-void focusstack(const Arg *arg) {
-	Client *c = NULL, *i;
-
-	if (!sel) return;
-	if (arg->i > 0) {
-		for (c = sel->next; c && !ISVISIBLE(c); c = c->next);
-		if (!c) for (c = clients; c && !ISVISIBLE(c); c = c->next);
-	} else {
-		for (i = clients; i != sel; i = i->next)
-			if (ISVISIBLE(i)) c = i;
-		if (!c) for (; i; i = i->next)
-			if (ISVISIBLE(i)) c = i;
-	}
-	if (c) {
-		focus(c);
-		restack(c, CliRaise);
-	}
-}
-
-
-/**
  * Start resizing the currently selected window with
  * a given resize mode. Further mouse movements will
  * apply sizing changes until keys are released or
@@ -1480,20 +1458,6 @@ void grabresize(const Arg *arg) {
 	if (ctrlmode != WinEdge)
 		/* bring the window to the top */
 		restack(sel, CliRaise);
-}
-
-
-/**
- * Start cycling the selection through the windows in such
- * a way that when the stackrelease key is released,
- * the resulting selected window is lifted to the top
- * of the stack.
- * @arg: contains i parameter identifying the direction
- *       to cycle (positive -> next, negative -> previous)
- */
-void grabstack(const Arg *arg) {
-	ctrlmode = ZoomStack;
-	focusstack(arg);
 }
 
 
@@ -1556,6 +1520,40 @@ void spawn(const Arg *arg) {
 	setsid();
 	execvp((*(char***)arg->v)[0], *(char ***)arg->v);
 	exit(EXIT_FAILURE);
+}
+
+
+/**
+ * Start cycling the selection through the windows in such
+ * a way that when the stackrelease key is released,
+ * the resulting selected window is lifted to the top
+ * of the stack.
+ * @arg: contains i parameter identifying the direction
+ *       to cycle (1 -> next, -1 -> previous)
+ */
+void stackgrab(const Arg *arg) {
+	ctrlmode = ZoomStack;
+	stackshift(arg);
+}
+
+
+/**
+ * Select the next or previous window in the stack.
+ * @arg: Contains i parameter identifying the direction
+ *       to cycle (1 -> next, -1 -> previous).
+ */
+void stackshift(const Arg *arg) {
+	Client *c = NULL, *r;
+
+	#define LOOP(C) (C->next ? C->next : clients)
+	if (!sel) return;
+	if (arg->i > 0)
+		for (c = LOOP(sel); c && !ISVISIBLE(c); c = LOOP(c));
+	else
+		for (r = LOOP(sel); r != sel; r = LOOP(r)) if (ISVISIBLE(r)) c = r;
+	if (!c) return;
+	focus(c);
+	restack(c, CliRaise);
 }
 
 
