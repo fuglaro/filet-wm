@@ -105,7 +105,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck, /* EWMH atoms */
 /* bar click regions */
 enum { ClkStatus, ClkTagBar, ClkSelTag, ClkLast };
 /* mouse motion modes */
-enum { DragMove, DragSize, DragTile, WinEdge, ZoomStack, CtrlNone };
+enum { DragMove, DragSize, WinEdge, ZoomStack, CtrlNone };
 /* window stack actions */
 enum { CliPin, CliRaise, CliZoom, CliRemove, BarShow, BarHide, CliNone };
 
@@ -129,7 +129,7 @@ struct Client {
 	float mina, maxa;
 	/* actual, and intended (f*) positon and size */
 	int x, y, w, h, fx, fy, fw, fh;
-	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, tile, full;
+	int basew, baseh, maxw, maxh, minw, minh, bw, fbw, tile, chain, full;
 	unsigned int tags;
 	Client *next;
 	Window win;
@@ -246,9 +246,8 @@ static Window dwin;
 Monitor *mons;
 char *font, **colors, **tags, **startup, **terminal, **upvol, **downvol,
 	**mutevol, **suspend, **poweroff, **dimup, **dimdown, **help;
-int borderpx, snap, tagslen, monslen, *nmain, keyslen, buttonslen;
+int borderpx, snap, tagslen, monslen, keyslen, buttonslen;
 int *barpos;
-float *mfact;
 KeySym stackrelease, barshow;
 Key *keys;
 Button *buttons;
@@ -281,10 +280,6 @@ void defaultconfig(void) {
 	A(Monitor, mons, {{0}});
 	/* position and width of the bar (x, y, w) */
 	V(int, barpos,, {0, 0, 640});
-	/* factor of main area size [0.05..0.95] (for each monitor) */
-	P(float, mfact, {0.6});
-	/* number of clients in main area (for each monitor) */
-	P(int, nmain, {1});
 
 	/* commands */
 	#define CMD(C) "sh", "-c", C, NULL
@@ -373,11 +368,15 @@ void defaultconfig(void) {
 
 
 /**
- * Add a client to the top of the list.
+ * Add a client into the the list after another client
+ * or at the top.
+ * @c: Client* - a pointer to the client to add to the list.
+ * @after: Client* - a pointer to the client to place the
+ *         window after. NULL adds to the top of the list.
  */
-void attach(Client *c) {
-	c->next = clients;
-	clients = c;
+void attach(Client *c, Client *after) {
+	c->next = after? after->next : clients;
+	*(after? &after->next : &clients) = c;
 }
 
 
@@ -438,8 +437,10 @@ Atom getatomprop(Client *c, Atom prop) {
  * attributes, for future reference.
  * Also, the border width of the window is updated depending
  * on the fullscreen state.
+ * @active: int(bool) - whether the size change should be forced
+ *          to apply to its floating state.
  */
-void resize(Client *c, int x, int y, int w, int h) {
+void resize(Client *c, int x, int y, int w, int h, int active) {
 	int m1, m2;
 	XWindowChanges wc;
 
@@ -450,11 +451,16 @@ void resize(Client *c, int x, int y, int w, int h) {
 	x = MAX(1 - w - 2*c->bw, MIN(sw - 1, x));
 	y = MAX(1 - h - 2*c->bw, MIN(sh - 1, y));
 
-	if (!c->tile && !c->full) {
+	/* apply change to fixed persistant values, if relevant  */
+	if ((!c->tile || active) && !c->full) {
 		c->fx = x;
 		c->fy = y;
 		c->fw = w;
 		c->fh = h;
+	}
+
+	/* snap edges for floating windows */
+	if (!c->tile && !c->full) {
 		/* find monitor so as to snap position to edges */
 		for (m1 = 0; m1 < monslen-1 && !INMON(x+snap, y+snap, mons[m1]); m1++);
 		for (m2 = 0; m2 < monslen-1 && !INMON(x+w-snap, y+h-snap, mons[m2]); m2++);
@@ -542,7 +548,7 @@ void restack(Client *c, int mode) {
 	case CliZoom:
 		if (c) {
 			detach(c);
-			attach(c);
+			attach(c, NULL);
 		}
 		/* fall through to CliRaise */
 	case CliRaise:
@@ -708,12 +714,18 @@ int xerror(Display *dpy, XErrorEvent *ee) {
  * The selected window is brought to the top since
  * it may have changed with a workspace (tag)
  * selection change.
+ * Minimum tile size before squeezing windows is 50th of width.
+ * @active: Client* - if not NULL, this client will be allowed to
+ *          free float so as to be dropped back into the tiling
+ *          layer with another location or size.
+ * @drop: int(bool) - if true, move the active window into
+ *        its new position in the stack and clear the remaining column.
  */
-void arrange(void) {
+void arrange(Client *active, int drop) {
 	Client *c;
-	int m, h, mw;
 	/* maximum of 32 monitors supported */
-	int nm[32] = {0}, i[32] = {0}, my[32] = {0}, ty[32] = {0};
+	int m, rm;
+	int w[32]={0}, h[32]={0}, nw[32]={0}, nh[32], x[32]={0}, y[32]={0}, s[32];
 
 	/* ensure a visible window has focus */
 	focus(NULL);
@@ -722,34 +734,88 @@ void arrange(void) {
 	for (c = clients; c; c = c->next)
 		XMoveWindow(dpy, c->win, ISVISIBLE(c) ? c->x : WIDTH(c) * -2, c->y);
 
-	/* find the number of tiled clients in each monitor */
+	/* evaluate the number of columns per monitor */
 	for (c = clients; c; c = c->next)
 		if (c->tile && !c->full && ISVISIBLE(c)) {
-			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-			nm[m]++;
+			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--); /* find monitor */
+			/* increment the column count ensuring the first column leader */
+			nw[m] += !(c->chain = c->chain && nw[m]);
 		}
 
-	/* arrange tiled windows into the relevant monitors. */
-	for (c = clients; c; c = c->next)
-		if (c->tile && !c->full && ISVISIBLE(c)) {
-			/* find the monitor placement again */
-			for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
-			/* tile the client within the relevant monitor */
-			mw = nm[m] > nmain[m] ? mons[m].mw * mfact[m] : mons[m].mw;
-			if (i[m] < nmain[m]) {
-				h = (mons[m].mh - my[m]) / (MIN(nm[m], nmain[m]) - i[m]);
-				resize(c, mons[m].mx, mons[m].my + my[m], mw-(2*c->bw), h-(2*c->bw));
-				if (my[m] + HEIGHT(c) < mons[m].mh)
-					my[m] += HEIGHT(c);
-			} else {
-				h = (mons[m].mh - ty[m]) / (nm[m] - i[m]);
-				resize(c, mons[m].mx + mw, mons[m].my + ty[m],
-					mons[m].mw - mw - (2*c->bw), h - (2*c->bw));
-				if (ty[m] + HEIGHT(c) < mons[m].mh)
-					ty[m] += HEIGHT(c);
+	/* orient columns horizontally for vertical monitors */
+	#define ORIENT(C, R) (mons[m].mw > mons[m].mh ? C : R)
+	#define X ORIENT(x, y)
+	#define Y ORIENT(y, x)
+	#define W ORIENT(w, h)
+	#define H ORIENT(h, w)
+	#define MW ORIENT(mons[m].mw, mons[m].mh)
+	#define MH ORIENT(mons[m].mh, mons[m].mw)
+	#define INCOL(C) (ORIENT(C->x,C->y) > X[m] && ORIENT(C->x,C->y) < X[m]+W[m])
+	#define INROW(C) (ORIENT(C->y,C->x) > Y[m] && ORIENT(C->y,C->x) < Y[m]+H[m])
+	#define SMH (active && INCOL(active) ? MH-s[m] : MH)
+
+	/* tile all the relevant clients */
+	for (c = clients; c; c = c->next) {
+		if (!c->tile || c->full || !ISVISIBLE(c)) continue;
+		/* find the monitor placement */
+		for (m = monslen-1; m > 0 && !ONMON(c, mons[m]); m--);
+
+		/* arrange columns from the left */
+		if (!c->chain) {
+			X[m] += W[m];
+			W[m] = MW-X[m]-ORIENT(c->fw, c->fh) <= MW/50*nw[m] ? (MW-X[m])/nw[m] : \
+				nw[m]>1? ORIENT(c->fw, c->fh) : MW-X[m]; /* fitted tile width */
+			nw[m]--;
+
+			/* reset at column leader and find the number of rows */
+			Y[m] = H[m] = 0;
+			/* the roaming active window reserves a 25th of the screen in the
+				 destination position.*/
+			s[m] = MH / 25;
+			nh[m] = 1;
+			for (Client *r = c->next; r; r = r->next) {
+				for (rm = monslen-1; rm > 0 && !ONMON(r, mons[rm]); rm--);
+				if (rm == m && !r->chain) break;
+				if (rm == m) nh[m]++; /* increment the row count */
 			}
-			i[m]++;
 		}
+
+		/* stack rows from the top */
+		Y[m] += H[m];
+		/* height of the tile, shrunk to make space for a roaming active window */
+		H[m] = SMH-Y[m]-ORIENT(c->fh, c->fw) <= SMH/50*nh[m] ? (SMH-Y[m])/nh[m] : \
+			nh[m]>1? ORIENT(c->fh, c->fw) : SMH-Y[m]; /* fitted tile height */
+		nh[m]--;
+
+		/* place the client into the tile position */
+		if (c != active)
+			resize(c, mons[m].mx+x[m], mons[m].my+y[m],
+				w[m]-2*c->bw, h[m]-2*c->bw, 0);
+
+		/* drop the active window into the new position and arrange again,
+			 or just leave some room for the active window being dragged */
+		if (active && INCOL(active) && INROW(active)) {
+			if (drop && active != c) {
+				if (active->next) active->next->chain &= active->chain;
+				active->chain = 1;
+				detach(active);
+				attach(active, c);
+				arrange(NULL, 0);
+				return;
+			} else {
+				Y[m] += s[m];
+				s[m] = 0;
+			}
+		}
+	}
+
+	/* handle a dropping client landing off monitor,
+		 or into place where it already was,
+		 otherwise it should have been caught above */
+	if (active && drop) {
+		active->chain = 0;
+		arrange(NULL, 0);
+	}
 
 	/* Lift the selected window to the top since the focus
 	   call above may have changed the selected window. */
@@ -759,6 +825,7 @@ void arrange(void) {
 
 /**
  * Finds the width of the given text, when drawn.
+ * @text: the text to measure the width of.
  */
 int drawntextwidth(const char *text) {
 	XGlyphInfo ext;
@@ -886,20 +953,10 @@ void grabkeys(XEvent *e) {
  * See grabresize.
  */
 void grabresizeabort() {
-	int m;
-
-	if (ctrlmode == CtrlNone || ctrlmode == ZoomStack) return;
-
-	/* update the monitor layout to match any tiling changes */
-	if (sel && ctrlmode == DragTile) {
-		for (m = 0; m < monslen-1 && !INMON(sel->x, sel->y, mons[m]); m++);
-		mfact[m] = MIN(0.95, MAX(0.05, (float)WIDTH(sel) / mons[m].mw));
-		nmain[m] = MAX(1, mons[m].mh / HEIGHT(sel));
-		arrange();
-	}
-
 	/* release the drag */
 	XUngrabPointer(dpy, CurrentTime);
+	if (sel && sel->tile && (ctrlmode == DragMove || ctrlmode == DragSize))
+		arrange(ctrlmode == DragMove ? sel : NULL, 1);
 	ctrlmode = CtrlNone;
 }
 
@@ -927,12 +984,13 @@ void motion() {
 
 	/* handle any drag modes */
 	if (sel && ctrlmode == DragMove)
-		resize(sel, sel->fx + x, sel->fy + y, sel->fw, sel->fh);
+		resize(sel, sel->x + x, sel->y + y, sel->w, sel->h, 1);
 	if (sel && ctrlmode == DragSize)
-		resize(sel, sel->fx, sel->fy, MAX(sel->fw + x, 1), MAX(sel->fh + y, 1));
-	if (sel && ctrlmode == DragTile)
-		resize(sel, sel->x, sel->y, MAX(sel->w + x, 1), MAX(sel->h + y, 1));
-	if (ctrlmode == WinEdge &&
+		resize(sel, sel->x, sel->y, sel->w + x, sel->h + y, 1);
+	/* update the monitor layout to match any tiling changes */
+	if (sel && sel->tile && (ctrlmode == DragMove || ctrlmode == DragSize))
+		arrange(sel, 0);
+	if (ctrlmode == WinEdge && /* watch for mouse over window edge */
 		(!sel || (!MOVEZONE(sel, rx, ry) && !RESIZEZONE(sel, rx, ry))))
 		grabresizeabort();
 	if (ctrlmode != CtrlNone) return;
@@ -978,16 +1036,16 @@ void setfullscreen(Client *c, int fullscreen) {
 		/* apply fullscreen window parameters */
 		w = mons[m2].mx - mons[m1].mx + mons[m2].mw;
 		h = mons[m2].my - mons[m1].my + mons[m2].mh;
-		resize(c, mons[m1].mx, mons[m1].my, w, h);
+		resize(c, mons[m1].mx, mons[m1].my, w, h, 0);
 
 	} else if (!fullscreen && c->full){
 		/* change back to original floating parameters */
 		PROPSET(c->win, NetWMState, XA_ATOM, 32, 0, 0);
 		c->full = 0;
 		c->bw = c->fbw;
-		resize(c, c->fx, c->fy, c->fw, c->fh);
+		resize(c, c->fx, c->fy, c->fw, c->fh, 0);
 	}
-	arrange();
+	arrange(NULL, 0);
 }
 
 
@@ -1007,7 +1065,7 @@ void setfullscreen(Client *c, int fullscreen) {
  */
 void unmanage(Client *c) {
 	restack(c, CliRemove);
-	arrange();
+	arrange(NULL, 0);
 	free(c);
 	XDeleteProperty(dpy, root, xatom[NetClientList]);
 	for (c = clients; c; c = c->next)
@@ -1164,7 +1222,7 @@ void configurerequest(XEvent *e) {
 		XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
 	} else if (!c->tile && !c->full && ISVISIBLE(c))
 		/* allow resizing of managed floating windows in active workspaces */
-		resize(c, ev->x, ev->y, ev->width, ev->height);
+		resize(c, ev->x, ev->y, ev->width, ev->height, 0);
 }
 
 
@@ -1192,17 +1250,13 @@ void destroynotify(XEvent *e) {
  */
 void exthandler(XEvent *ev) {
 	switch (ev->xcookie.evtype) {
-	case XI_RawMotion:
-		domotion = 1; /* defer motion processing */
-		return;
-	case XI_RawButtonRelease:
-		grabresizeabort();
-		return;
 	default: /* must be an XRandR output change event */
 		updatemonitors();
 		return;
+	case XI_RawMotion:
+		domotion = 1; /* defer motion processing */
+		return;
 	case XI_RawKeyRelease:
-		grabresizeabort();
 		/* zoom after cycling windows if releasing the modifier key, this gives
 			 AltTab+Tab...select behavior like with common window managers */
 		if (ctrlmode == ZoomStack) {
@@ -1211,9 +1265,11 @@ void exthandler(XEvent *ev) {
 			if (KCODE(stackrelease) == re->detail) {
 				ctrlmode = CtrlNone;
 				restack(sel, CliZoom);
-				arrange(); /* zooming tiled windows can rearrange tiling */
+				arrange(NULL, 0); /* zooming tiled windows can rearrange tiling */
 			}
 		}
+	case XI_RawButtonRelease:
+		grabresizeabort();
 	}
 }
 
@@ -1293,7 +1349,7 @@ void maprequest(XEvent *e) {
 	/* manage the window by registering it as a new client */
 	if (!(c = calloc(1, sizeof(Client))))
 		DIE("calloc failed.\n");
-	attach(c);
+	attach(c, NULL);
 	c->win = ev->window;
 	c->tags = tagset;
 	/* geometry */
@@ -1326,7 +1382,7 @@ void maprequest(XEvent *e) {
 	/* some windows require this */
 	XMoveResizeWindow(dpy, c->win, c->fx + 2 * sw, c->fy, c->fw, c->fh);
 	PROPSET(c->win, WMState, xatom[WMState], 32, state, 2);
-	resize(c, c->fx, c->fy, c->fw, c->fh);
+	resize(c, c->fx, c->fy, c->fw, c->fh, 0);
 	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
 		setfullscreen(c, 1);
 	restack(c, CliRaise);
@@ -1411,22 +1467,13 @@ void focusstack(const Arg *arg) {
  * @arg: contains i parameter identifying the resize mode:
  *       - DragMove: move the window x and y position.
  *       - DragSize: resize the window w and h sizes.
- *       - DragTile: resize the window w and h sizes and then
- *                   change the tiling layout to best fit the
- *                   window as the first window in the stack.
  */
 void grabresize(const Arg *arg) {
-	/* abort if already in the desired mode */
-	if (ctrlmode == arg->i) return;
-	/* only grab if there is a selected window,
-	   no support moving fullscreen or repositioning tiled windows. */
-	if (!sel || sel->full || (arg->i == DragMove && sel->tile)) return;
-
+	/* abort if already in the desired mode,
+	   or if there is no selected window, or its fullscreen. */
+	if (ctrlmode == arg->i || !sel || sel->full) return;
 	/* set the drag mode so future motion applies to the action */
 	ctrlmode = arg->i;
-	/* detect if we should be dragging the tiled layout */
-	if (ctrlmode == DragSize && sel->tile)
-		ctrlmode = DragTile;
 	/* grab pointer and show resize cursor */
 	XGrabPointer(dpy, root, True, ButtonPressMask,
 		GrabModeAsync, GrabModeAsync, None, cursize, CurrentTime);
@@ -1520,7 +1567,7 @@ void spawn(const Arg *arg) {
 void tag(const Arg *arg) {
 	if (sel && arg->ui & TAGMASK) {
 		sel->tags = arg->ui & TAGMASK;
-		arrange();
+		arrange(NULL, 0);
 	}
 }
 
@@ -1533,8 +1580,8 @@ void togglefloating(const Arg *arg) {
 
 	if (sel && (wasfull = sel->full)) setfullscreen(sel, 0);
 	if (sel && !(sel->tile = !sel->tile || wasfull))
-		resize(sel, sel->fx, sel->fy, sel->fw, sel->fh);
-	arrange();
+		resize(sel, sel->fx, sel->fy, sel->fw, sel->fh, 0);
+	arrange(NULL, 0);
 }
 
 
@@ -1555,7 +1602,7 @@ void togglefullscreen(const Arg *arg) {
 void toggletag(const Arg *arg) {
 	if (sel && sel->tags ^ (arg->ui & TAGMASK)) {
 		sel->tags = sel->tags ^ (arg->ui & TAGMASK);
-		arrange();
+		arrange(NULL, 0);
 	}
 }
 
@@ -1568,7 +1615,7 @@ void toggletag(const Arg *arg) {
 void view(const Arg *arg) {
 	tagset = arg->ui & TAGMASK;
 	drawbar();
-	arrange();
+	arrange(NULL, 0);
 }
 
 
@@ -1580,7 +1627,7 @@ void view(const Arg *arg) {
 void viewshift(const Arg *arg) {
 	tagset = TAGSHIFT(tagset, arg->i);
 	drawbar();
-	arrange();
+	arrange(NULL, 0);
 }
 
 
@@ -1602,7 +1649,7 @@ void viewtagshift(const Arg *arg) {
  */
 void zoom(const Arg *arg) {
 	restack(sel, CliZoom);
-	arrange(); /* zooming tiled windows can rearrange tiling */
+	arrange(NULL, 0); /* zooming tiled windows can rearrange tiling */
 }
 
 

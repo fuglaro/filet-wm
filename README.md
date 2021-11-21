@@ -6,7 +6,7 @@
 filetwm is a minimalist window manager for X. It manages windows in tiled and free floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
 
-All windows start out floating and can be switched between the tiled layer on demand. In the tiled layer, windows are managed in two columns. The left column is the primary area and contains one window by default, while the right column is the stacking area and contains all other windows. The number of primary area windows can be adjusted to an arbitrary number, along with the primary column size, by resizing any window in the tile layer. In the floating layer, windows can be resized and moved freely.
+All windows start out floating and can be switched between the tiled layer on demand. The tiling layer is arranged into columns, and adding a window to the tiling layer will create a new column. Column widths can be adjusted by resizing the top window of each column, and moving windows will either shift them to different columns or move them to a different row position. The height of each window in a column can adjusted by resizing. The final columns of the monitor, and the final windows of each column, may be shrunk to a minimum size to fit the monitor area. Vertical monitors follow a similar tiling layout but are flipped so the columns are arranged horizontally. In the floating layer, windows can be resized and moved freely.
 
 Window focus follows the mouse and clicks will raise a window. If any floating window is raised, all floating windows will sit above tiled windows. Fullscreen windows that are not raised will sit behind the tiled layer.
 
@@ -170,8 +170,6 @@ void config(void) {
     P(char*, colors, { "#ddffdd", "#335533", "#338877", "#558855", "#dd6622" }); /* colors (must be five colors: fg, bg, highlight, border, sel-border) */
     A(char*, tags, { "[ ]", "[ ]", "[ ]", "[ ]"}); /* virtual workspaces (must be 32 or less) */
     A(Monitor, mons, {{0}, {0}, {0}});
-    P(float, mfact, {0.5, 0.75, 0.5}); /* factor of main area size [0.05..0.95] (for each monitor) */
-    P(int, nmain, {4, 1, 4}); /* number of clients in main area (for each monitor) */
 
   /* commands */
     /* new declaration doesn't override an existing value but is injected via inclusion when overriding keys */
@@ -270,16 +268,9 @@ It is worth considering a Rust implementation when this happens.
 # TODO
 
 * update gif with inbuilt launcher, and pinned border color, alacritty?.
-* More controllable tiling layouts (per monitor):
-  * The tiling layout is arranged into columns.
-  * Adding a window to the tiling layer will create a new column, half the width of the previous last column. Column widths can be adjusted by resizing the top window of each column.
-  * Moving windows will shift them into different columns, allowing each column to contain multiple windows arranged vertically. Empty columns will collapse.
-  * The height of each window in a column can adjusted by window resizing.
-  * The final columns of the monitor, and the final windows of each column, may be shrunk to a minimum size to fit the monitor area.
-  * Vertical monitors follow a similar tiling layout but are flipped with rows instead of columns.
-  * -code- fx,fy,fw,fh just becomes "intended" size.
 * Alt.shift + Tab behaviour comes back as Win.shift + Tab, and existing shortcut stack lifts through same layer. This leaves the Launcher shortcut moving to Win+Esc, and Terminal launcher being Win+Alt+Esc.
 * Tile shortcut - Win + backspace
+* Switch size and move shortcuts
 
 # Thanks to, grateful forks, and contributions
 
