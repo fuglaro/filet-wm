@@ -267,7 +267,7 @@ It is worth considering a Rust implementation when this happens.
 
 # TODO
 
-* update gif with inbuilt launcher, and pinned border color, alacritty?.
+* update gif with inbuilt launcher, pinned border color, new tiling layout, and alacritty.
 * Alt.shift + Tab behaviour comes back as Win.shift + Tab, and existing shortcut stack lifts through same layer. This leaves the Launcher shortcut moving to Win+Esc, and Terminal launcher being Win+Alt+Esc.
 * Tile shortcut - Win + backspace
 * Switch size and move shortcuts
