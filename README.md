@@ -1,4 +1,4 @@
-# *filetwm* - Filet-Lignux's Window Manager
+# *filetwm* - A Lean Slice of Window Manager
 
 ![](filetwm-demo.gif)[^1]
 [^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the background, and terminal color scheme from filet-lignux.

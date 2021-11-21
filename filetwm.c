@@ -984,11 +984,12 @@ void motion() {
 	x = rx - lx; lx = rx;
 	y = ry - ly; ly = ry;
 
+	#define WV(V) (sel->tile ? sel->V : sel->f##V)
 	/* handle any drag modes */
 	if (sel && ctrlmode == DragMove)
-		resize(sel, sel->x + x, sel->y + y, sel->w, sel->h, 1);
+		resize(sel, WV(x)+x, WV(y)+y, WV(w), WV(h), 1);
 	if (sel && ctrlmode == DragSize)
-		resize(sel, sel->x, sel->y, sel->w + x, sel->h + y, 1);
+		resize(sel, WV(x), WV(y), WV(w)+x, WV(h)+y, 1);
 	/* update the monitor layout to match any tiling changes */
 	if (sel && sel->tile && (ctrlmode == DragMove || ctrlmode == DragSize))
 		arrange(sel, 0);
