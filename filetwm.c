@@ -775,11 +775,12 @@ void arrange(Client *active, int drop) {
 				 destination position.*/
 			s[m] = MH / 25;
 			nh[m] = 1;
-			for (Client *r = c->next; r; r = r->next) {
-				for (rm = monslen-1; rm > 0 && !ONMON(r, mons[rm]); rm--);
-				if (rm == m && !r->chain) break;
-				if (rm == m) nh[m]++; /* increment the row count */
-			}
+			for (Client *r = c->next; r; r = r->next)
+				if (r->tile && !r->full && ISVISIBLE(r)) {
+					for (rm = monslen-1; rm > 0 && !ONMON(r, mons[rm]); rm--);
+					if (rm == m && !r->chain) break;
+					if (rm == m) nh[m]++; /* increment the row count */
+				}
 		}
 
 		/* stack rows from the top */
