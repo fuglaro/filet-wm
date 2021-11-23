@@ -514,6 +514,8 @@ void resize(Client *c, int x, int y, int w, int h, int active) {
  * stack of the given client:
  *  - CliPin: pinned window to the very top above all layers (or unpin).
  *  - CliRaise: temporarily show above all layers, but below pinned.
+ *              If no client is passed with this, this will reselect
+ *              the previous raised window.
  *  - CliZoom: bring the window to the top of stack.
  *  - CliRemove: Remove window from stack entirely.
  *  - BarShow: Raise bar (c ignored).
@@ -554,7 +556,7 @@ void restack(Client *c, int mode) {
 		}
 		/* fall through to CliRaise */
 	case CliRaise:
-		*raised = c;
+		if (c) *raised = c; else focus(*raised);
 	}
 
 	/* start window stacking */
@@ -819,10 +821,6 @@ void arrange(Client *active, int drop) {
 		active->chain = 0;
 		arrange(NULL, 0);
 	}
-
-	/* Lift the selected window to the top since the focus
-	   call above may have changed the selected window. */
-	restack(sel, CliRaise);
 }
 
 
@@ -1615,6 +1613,7 @@ void toggletag(const Arg *arg) {
 void view(const Arg *arg) {
 	tagset = arg->ui & TAGMASK;
 	drawbar();
+	restack(NULL, CliRaise); /* reselect raised window */
 	arrange(NULL, 0);
 }
 
@@ -1625,9 +1624,7 @@ void view(const Arg *arg) {
  *       number to increase by (negative decreases)
  */
 void viewshift(const Arg *arg) {
-	tagset = TAGSHIFT(tagset, arg->i);
-	drawbar();
-	arrange(NULL, 0);
+	view(&(Arg){.ui = TAGSHIFT(tagset, arg->i)});
 }
 
 
