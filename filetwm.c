@@ -524,12 +524,9 @@ void resize(Client *c, int x, int y, int w, int h, int active) {
 void restack(Client *c, int mode) {
 	static Client *allraised[32] = {0}; /* raised window over all workspaces */
 	Client **raised = &allraised[0];
-	int barup, i = 0;
+	int barup, i = 0, j;
 	Window topstack[4] = {0};
 	XWindowChanges wc;
-
-	/* find the raised window container of the first active workspace */
-	for (int j = 0; j < tagslen && tagset&1<<j; j++) raised = &allraised[j];
 
 	switch (mode) {
 	case CliPin:
@@ -554,10 +551,14 @@ void restack(Client *c, int mode) {
 			detach(c);
 			attach(c, NULL);
 		}
-		/* fall through to CliRaise */
-	case CliRaise:
-		if (c) *raised = c; else focus(*raised);
 	}
+
+	/* find the raised window pointer for the first active workspace,
+	   and raise the current client if needed */
+	for (j = 0; j < tagslen && !(tagset&1<<j); j++);
+	raised = &allraised[j];
+	if (mode == CliZoom || mode == CliRaise)
+		focus(c ? (*raised = c) : *raised);
 
 	/* start window stacking */
 	/* bar window is above all when bar is focused,
@@ -1047,6 +1048,7 @@ void setfullscreen(Client *c, int fullscreen) {
 		c->bw = c->fbw;
 		resize(c, c->fx, c->fy, c->fw, c->fh, 0);
 	}
+	restack(c, CliRaise);
 	arrange(NULL, 0);
 }
 
@@ -1390,7 +1392,6 @@ void maprequest(XEvent *e) {
 		setfullscreen(c, 1);
 	restack(c, CliRaise);
 	XMapWindow(dpy, c->win);
-	focus(c);
 	launcher(&(Arg){.i = 0});
 }
 
@@ -1552,7 +1553,6 @@ void stackshift(const Arg *arg) {
 	else
 		for (r = LOOP(sel); r != sel; r = LOOP(r)) if (ISVISIBLE(r)) c = r;
 	if (!c) return;
-	focus(c);
 	restack(c, CliRaise);
 }
 
