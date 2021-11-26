@@ -1390,8 +1390,8 @@ void maprequest(XEvent *e) {
 	resize(c, c->fx, c->fy, c->fw, c->fh, 0);
 	if (getatomprop(c, xatom[NetWMState]) == xatom[NetWMFullscreen])
 		setfullscreen(c, 1);
-	restack(c, CliRaise);
 	XMapWindow(dpy, c->win);
+	restack(c, CliRaise);
 	launcher(&(Arg){.i = 0});
 }
 
