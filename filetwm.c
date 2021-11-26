@@ -1637,7 +1637,10 @@ void viewshift(const Arg *arg) {
 void viewtagshift(const Arg *arg) {
 	if (sel)
 		sel->tags = TAGSHIFT(sel->tags, arg->i);
-	viewshift(arg);
+	tagset = TAGSHIFT(tagset, arg->i) & TAGMASK;
+	drawbar();
+	restack(sel, CliRaise);
+	arrange(NULL, 0);
 }
 
 
