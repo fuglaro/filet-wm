@@ -186,9 +186,6 @@ static void focus(Client *c);
 static char cmds[NUMCMDS][LENCMD], cmdfilter[LENCMD] = {'\0'}, stxt[256] = {
 	'f','i','l','e','t','-','w','m','\0',[255]='\0'};
 static int sw, sh;           /* X display screen geometry width, height */
-static Window barwin;        /* the bar */
-static int barfocus, barcmds, cmdi; /* bar status (force show / in launcher) */
-static int ctrlmode = CtrlNone; /* mouse mode (resize/repos/arrange/etc) */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int tagset = 1; /* mask for which workspaces are displayed */
 /* The event handlers are organized in an array which is accessed
@@ -216,7 +213,9 @@ static XftDraw *drawablexft;      /* font rendering for canvas */
 static GC gc;                     /* graphics context */
                                   /* references to managed windows */
 static Client *clients, *pinned = NULL, *sel;
-static Window root, wmcheckwin;
+static Window barwin, root, wmcheckwin, lastcw = {0};
+static int barfocus, barcmds, cmdi; /* bar status (force show / in launcher) */
+static int ctrlmode = CtrlNone; /* mouse mode (resize/repos/arrange/etc) */
 static Cursor curpoint, cursize;  /* mouse cursor icons */
 static XftColor cols[colslen];    /* colors (fg, bg, mark, bdr, selbdr) */
 static XftFont *xfont;            /* X font reference */
@@ -926,6 +925,8 @@ void focus(Client *c) {
 		XSetInputFocus(dpy, barwin, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, barwin, xatom[NetActiveWindow]);
 	}
+        /* reset the mouse motion last window cache */
+        lastcw = 0;
 	/* Refresh the stack in case the bar should now be shown */
 	restack(NULL, CliNone);
 }
@@ -976,7 +977,6 @@ void motion() {
 	unsigned int mask;
 	char keystate[32];
 	Window cw;
-	static Window lastcw = {0};
 	static Client *c = NULL;
 
 	/* capture pointer and motion details */
