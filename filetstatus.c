@@ -35,11 +35,14 @@
 #define SEEK(V, buf) ((b = strstr(buf, V)) ? b += strlen(V) : NULL)
 /* retrieve a 'long' from the buffer after a string */
 #define L(V) (strstr(buf, V) ? strtol(strstr(buf, V)+strlen(V), &dcp, 10) : 0)
+/* load the battery file to buffer with GET */
+#define BAT(F) { GET("/sys/class/power_supply/BAT0/"F);\
+		if (f<0) GET("/sys/class/power_supply/bms/"F); }
 
 int
 main(int argc, char *argv[])
 {
-	int f, r, i, j, vpn;
+	int f, r, i, j, vpn, charge;
 	long bat, delta, idle, cpu, mem, maxcpu, totcpu;
 	/* only b up to 64 CPUs */
 	static long ctimelast[64] = {0}, cidlelast[64] = {0};
@@ -82,19 +85,22 @@ main(int argc, char *argv[])
 		mem = L("mTotal:")-L("mFree:")-L("Buffers:")-L("Cached:")-L("claimable:");
 
 		/* battery levels */
-		GET("/sys/class/power_supply/BAT0/capacity");
-		if (f<0) GET("/sys/class/power_supply/bms/capacity");
+		BAT("capacity");
 		bat = L("");
+		/* battery charging */
+		BAT("status");
+		charge = 0==strncmp(buf, "Charging", 8);
 
 		/* time */
 		now = time(0);
 
 		/* send output and wait interval */
-		snprintf(buf, 4999*sizeof(char), "%s(%ld*%ld%%|%ldM) [%ld] "
-			"%02d:%02d", vpn?"{VPN} ":"", totcpu/(maxcpu?maxcpu:1), maxcpu,
-			mem/1024, bat, localtime(&now)->tm_hour, localtime(&now)->tm_min);
+		snprintf(buf, 4999*sizeof(char), "%s(%ld*%ld%%|%ldM) [%ld%s] %02d:%02d",
+			vpn?"{VPN} ":"", totcpu/(maxcpu?maxcpu:1), maxcpu, mem/1024, bat,
+			charge?"+":"", localtime(&now)->tm_hour, localtime(&now)->tm_min);
 		XStoreName(dpy, root, (char *)buf);
 		XSync(dpy, False);
 		sleep(5);
+
 	}
 }
