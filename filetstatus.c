@@ -37,7 +37,7 @@
 #define L(V) (strstr(buf, V) ? strtol(strstr(buf, V)+strlen(V), &dcp, 10) : 0)
 /* load the battery file to buffer with GET */
 #define BAT(F) { GET("/sys/class/power_supply/BAT0/"F);\
-		if (f<0) GET("/sys/class/power_supply/bms/"F); }
+		if (f<0) GET("/var/battery/"F); }
 
 int
 main(int argc, char *argv[])
