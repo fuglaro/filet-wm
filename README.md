@@ -1,7 +1,7 @@
 # *filetwm* - A Lean Slice of Window Manager
 
 ![](filetwm-demo.gif)[^1]
-[^1]: gif shows configuration with dmenu, not the inbuilt launcher, and is configured with the background, and terminal color scheme from filet-lignux.
+[^1]: gif is configured with the background, and terminal color scheme from filet-lignux.
 
 filetwm is a minimalist window manager for X. It manages windows in tiled and free floating layers, across virtual workspaces, with support for fullscreen and
 pinned windows.
