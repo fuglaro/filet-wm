@@ -265,10 +265,6 @@ Significant changes:
 This is built on X11, not Wayland, for no other reason than timing. Shortly after this project was started, NVIDIA support for Wayland was announced. This project will not include Wayland support due to the inevitable complexities of concurrently supporting multiple interfaces. When the timing is right, this will fork into a new project which can move in the direction of Wayland.
 It is worth considering a Rust implementation when this happens.
 
-# TODO
-
-* update gif with inbuilt launcher, pinned border color, new tiling layout, and alacritty.
-
 # Thanks to, grateful forks, and contributions
 
 We stand on the shoulders of giants. They own this, far more than I do.
